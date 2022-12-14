@@ -48,7 +48,7 @@ class ImagePromptOptimizer(nn.Module):
                 iterations=100,
                 lr = 0.01,
                 save_vector=True,
-                return_val="latent",
+                return_val="vector",
                 quantize=True,
                 make_grid=False) -> None:
                 
@@ -107,6 +107,13 @@ class ImagePromptOptimizer(nn.Module):
         else:
             plt.imshow(get_pil(processed_img[0]).detach().cpu())
             plt.show()
+    def attn_masking(self, grad):
+        print(f"grad.shape = {grad.shape}")
+        if self.attn_mask is not None:
+            print("masking")
+            return grad * self.attn_mask
+        return grad
+
     def optimize(self, latent, pos_prompts, neg_prompts):
         self.set_latent(latent)
         vector = torch.randn_like(self.latent, requires_grad=True, device=self.device)
@@ -117,6 +124,7 @@ class ImagePromptOptimizer(nn.Module):
         for i in tqdm(range(self.iterations)):
             transformed_img = self(vector)
             processed_img = loop_post_process(transformed_img)
+            processed_img.register_hook(self.attn_masking)
             # p1 = processed_img.retain_grad().grad
             # print(p1)
             loss = self.get_similarity_loss(pos_prompts, neg_prompts, processed_img)
@@ -128,8 +136,8 @@ class ImagePromptOptimizer(nn.Module):
             # print(p3, p3.shape)
             optim.step()
             # return
-            # if i % self.iterations // 10 == 0: 
-                # self.visualize(processed_img)
+            if i % self.iterations // 10 == 0: 
+                self.visualize(processed_img)
             yield vector
         # if self.make_grid:
             # plt.savefig(f"plot {pos_prompts[0]}.png")
@@ -187,10 +195,15 @@ class ImageState:
         img, latent = blend_paths(self.vqgan, path1, path2, weight=weight, show=False, device=self.device)
         self.blend_latent = latent.to(self.device)
         return self._render_all_transformations()
-    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img):
-        attn_mask = img["mask"]
-        print(type(attn_mask))
-        print(attn_mask.shape)
+    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, mask=None):
+        if img and "mask" in img:
+            attn_mask = torchvision.transforms.ToTensor()(img["mask"])
+            attn_mask = torch.ceil(attn_mask[0].to(self.device))
+            print(type(attn_mask))
+            print(attn_mask.shape)
+        if mask is not None:
+            attn_mask = mask
+        # torch.save(attn_mask, "eyebrow_mask.pt")
         self.prompt_optim.set_params(lr, iterations, attn_mask)
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                 positive_prompts,
@@ -204,104 +217,3 @@ class ImageState:
                                                 # negative_prompts)
         # self.prompt_transforms = transform
         # return self._render_all_transformations()
-
-# # %%
-# promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=False)
-# test = ImageState(vqgan, promptoptim)
-# test.blend("./test_data/face.jpeg", "./test_data/face2.jpeg", 0.5)
-# test.apply_lip_vector(0.6)
-
-# # %% [markdown]
-# # 
-
-# # %%
-# test.apply_rb_vector(.8)
-
-# # %%
-# test.apply_lip_vector(.6)
-
-# # %%
-# test.blend("./test_data/face.jpeg", "./test_data/face2.jpeg", 0.1)
-# import functools
-# import edit
-# import importlib
-# importlib.reload(edit)
-# # bp = functools.partial(edit.blend_paths, model, show=False)
-# model = vqgan
-# promptoptim = ImagePromptOptimizer(model, clip, processor, quantize=False)
-# state = ImageState(model, promptoptim)
-# with gr.Blocks() as demo:
-#     with gr.Row():
-#         with gr.Column(scale=2):
-#             hair_red_blue = gr.Slider(
-#                 label="hair red<->blue ",
-#                 minimum=-.8,
-#                 maximum=.8,
-#                 value=0,
-#                 step=0.1,
-#             )
-#             hair_green_purple = gr.Slider(
-#                 label="hair green<->purple ",
-#                 minimum=-.8,
-#                 maximum=.8,
-#                 value=0,
-#                 step=0.1,
-#             )
-#             lip_size = gr.Slider(
-#                 label="lip size",
-#                 minimum=-1.9,
-#                 value=0,
-#                 maximum=1.9,
-#                 step=0.1,
-#             )
-#             blend_weight = gr.Slider(
-#                 label="0 is src image, 1 is blend_img",
-#                 minimum=-0.,
-#                 value=0,
-#                 maximum=1.,
-#                 step=0.1,
-#             )
-#             requantize = gr.Checkbox(
-#                 label="requantize latents",
-#                 value=True,
-#             )
-#             gender_weight = gr.Slider(
-#                 label="gender weight (-1 female, 1 male)",
-#                 minimum=-2.,
-#                 value=0,
-#                 maximum=2.,
-#                 step=0.07,
-#             )
-#             with gr.Row():
-#                 with gr.Column(scale=1):
-#                     base_img = gr.Image(label="base Image", type="filepath")
-#                     blend_img = gr.Image(label="image for face blending (optional)", type="filepath")
-#                 with gr.Column(scale=2):
-#                     positive_prompts = gr.Textbox(label="Positive prompts")
-#                     negative_prompts = gr.Textbox(label="Negative prompts")
-#                     iterations = gr.Slider(minimum=10,
-#                                             maximum=300,
-#                                             value=40,
-#                                             label="optimization iterations",)
-#                     learning_rate = gr.Slider(minimum=1e-3,
-#                                             maximum=1e-1,
-#                                             value=1e-2,
-#                                             label="learning rate")
-#                     apply_prompts = gr.Button(value="Apply Prompts")
-
-#         with gr.Column(scale=1):
-#             out = gr.Image(interactive=True, tool="sketch", shape=(200, 200))
-#             test = gr.Image(interactive=False, shape=(200, 200))
-#             i = gr.Button()
-#     gender_weight.change(state.apply_gender_vector, inputs=[gender_weight], outputs=out)
-#     requantize.change(state.update_requant, inputs=[requantize], outputs=out)
-#     lip_size.change(state.apply_lip_vector, inputs=[lip_size], outputs=out)
-#     hair_green_purple.change(state.apply_gp_vector, inputs=[hair_green_purple], outputs=out)
-#     hair_red_blue.change(state.apply_rb_vector, inputs=[hair_red_blue], outputs=out)
-#     blend_weight.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
-#     base_img.change(state.blend, inputs=[base_img, base_img, blend_weight], outputs=out)
-#     blend_img.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
-#     apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out], outputs=out)
-# demo.queue()
-# demo.launch(debug=True, inbrowser=True)
-
