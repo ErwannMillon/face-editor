@@ -15,7 +15,7 @@ import importlib
 from loaders import load_default
 import torchvision
 from transformers import CLIPProcessor, CLIPModel
-
+import lpips
 class ProcessorGradientFlow():
     def __init__(self, device="cuda") -> None:
         self.device = device
@@ -50,7 +50,8 @@ class ImagePromptOptimizer(nn.Module):
                 save_vector=True,
                 return_val="vector",
                 quantize=True,
-                make_grid=False) -> None:
+                make_grid=False,
+                lpips_weight = 6.2) -> None:
                 
         super().__init__()
         self.latent = None
@@ -64,12 +65,15 @@ class ImagePromptOptimizer(nn.Module):
         self.make_grid = make_grid
         self.return_val = return_val
         self.quantize = quantize
+        self.lpips_weight = lpips_weight
+        self.perceptual_loss = lpips.LPIPS(net='vgg').to(self.device)
     def set_latent(self, latent):
         self.latent = latent.detach().to(self.device)
-    def set_params(self, lr, iterations, attn_mask):
+    def set_params(self, lr, iterations, attn_mask, lpips_weight):
         self.attn_mask = attn_mask
         self.iterations = iterations
         self.lr = lr
+        self.lpips_weight = lpips_weight
     def forward(self, vector):
         base_latent = self.latent.detach().requires_grad_()
         trans_latent = base_latent + vector
@@ -116,6 +120,8 @@ class ImagePromptOptimizer(nn.Module):
 
     def optimize(self, latent, pos_prompts, neg_prompts):
         self.set_latent(latent)
+        transformed_img = self(torch.zeros_like(self.latent, requires_grad=True, device=self.device))
+        original_img = loop_post_process(transformed_img)
         vector = torch.randn_like(self.latent, requires_grad=True, device=self.device)
         optim = torch.optim.Adam([vector], lr=self.lr)
         if self.make_grid:
@@ -127,14 +133,22 @@ class ImagePromptOptimizer(nn.Module):
             # processed_img.register_hook(self.attn_masking)
             # p1 = processed_img.retain_grad().grad
             # print(p1)
-            if i < self.iterations - 2:
-              print("masking2")
-              processed_img *= self.attn_mask
-            loss = self.get_similarity_loss(pos_prompts, neg_prompts, processed_img)
+            # if i < self.iterations - 2:
+              # print("masking2")
+              # processed_img *= self.attn_mask
+            lpips_input = processed_img.clone()
+            lpips_input.register_hook(self.attn_masking)
+            perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
+            print("perc: ", perceptual_loss)
+            print("percweight: ", self.lpips_weight)
+
+            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, processed_img)  
+            loss = clip_loss + perceptual_loss
+            print(loss)
             optim.zero_grad()
             # p2 = processed_img.grad
             # print(p2)
-            loss.backward()
+            loss.backward(retain_graph=True)
             # p3 = processed_img.retain_grad().grad
             # print(p3, p3.shape)
             optim.step()
@@ -203,16 +217,18 @@ class ImageState:
         rep[mask < 0.03] = -1000000
         rep[mask >= 0.03] = 1
         return rep
-    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, mask=None):
-        attn_mask = mask
-        if img and "mask" in img:
+    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, mask=None):
+        # attn_mask = mask
+        if img and "mask" in img and img["mask"] is not None:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
             attn_mask = torch.ceil(attn_mask[0].to(self.device))
-            torch.save(attn_mask, "lip_mask.pt")
-            attn_mask = self.rescale_mask(attn_mask)
+            # torch.save(attn_mask, "lip_mask.pt")
+            # attn_mask = self.rescale_mask(attn_mask)
             print(type(attn_mask))
             print(attn_mask.shape)
-        self.prompt_optim.set_params(lr, iterations, attn_mask)
+        else:
+            attn_mask = torch.ones_like(img, device=self.device)
+        self.prompt_optim.set_params(lr, iterations, attn_mask, lpips_weight)
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                 positive_prompts,
                                                 negative_prompts)):
