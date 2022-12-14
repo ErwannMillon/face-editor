@@ -1,4 +1,7 @@
 from img_processing import preprocess, preprocess_vqgan, custom_to_pil
+import os
+import sys
+sys.path.append("taming-transformers")
 import taming
 import glob
 import torch
