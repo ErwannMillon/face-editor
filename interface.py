@@ -9,13 +9,13 @@ from app_backend import ProcessorGradientFlow, ImagePromptOptimizer, ImageState
 from transformers import CLIPProcessor, CLIPModel
 from loaders import load_default
 import gradio as gr
-device = "cpu"
+device = "cuda"
 vqgan = load_default(device)
 vqgan.eval()
 processor = ProcessorGradientFlow(device=device)
 clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
 clip.to(device)
-promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=False)
+promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
 state = ImageState(vqgan, promptoptim)
 
 with gr.Blocks() as demo:
@@ -92,4 +92,4 @@ with gr.Blocks() as demo:
     apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out], outputs=out)
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(debug=True, inbrowser=True)
+    demo.launch(share=True, debug=True, inbrowser=True)
