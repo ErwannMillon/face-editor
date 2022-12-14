@@ -2,3 +2,6 @@
 [submodule "taming-transformers"]
 	path = taming-transformers
 	url = https://github.com/CompVis/taming-transformers.git
+[submodule "aws_init"]
+	path = aws_init
+	url = git@github.com:ErwannMillon/aws_init.git

@@ -65,8 +65,10 @@ with gr.Blocks() as demo:
                     base_img = gr.Image(label="base Image", type="filepath")
                     blend_img = gr.Image(label="image for face blending (optional)", type="filepath")
                 with gr.Column(scale=2):
-                    positive_prompts = gr.Textbox(label="Positive prompts")
-                    negative_prompts = gr.Textbox(label="Negative prompts")
+                    positive_prompts = gr.Textbox(label="Positive prompts",
+                                                    value="a picture of a woman with a very big nose | a picture of a woman with a large wide nose | a woman with an extremely prominent nose")
+                    negative_prompts = gr.Textbox(label="Negative prompts",
+                                                    value="a picture of a person with a tiny nose | a picture of a person with a very thin nose")
                     iterations = gr.Slider(minimum=10,
                                             maximum=300,
                                             value=40,
@@ -75,9 +77,13 @@ with gr.Blocks() as demo:
                                             maximum=1e-1,
                                             value=1e-2,
                                             label="learning rate")
-                    lpips_weight = gr.Slider(minimum=0,
+                    clip_weight = gr.Slider(minimum=0,
                                             maximum=30,
-                                            value=0,
+                                            value=1,
+                                            label="clip loss weight similarity ecommended when masking)")
+                    lpips_weight = gr.Slider(minimum=1,
+                                            maximum=30,
+                                            value=1,
                                             label="Perceptual similarity (high to preserve identity for transformations where the person's identity should not change, recommended when masking)")
                     apply_prompts = gr.Button(value="Apply Prompts")
 
@@ -93,7 +99,7 @@ with gr.Blocks() as demo:
     blend_weight.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
     base_img.change(state.blend, inputs=[base_img, base_img, blend_weight], outputs=out)
     blend_img.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
-    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out, lpips_weight], outputs=out)
+    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out, lpips_weight, clip_weight], outputs=out)
 if __name__ == "__main__":
     demo.queue()
     demo.launch(share=True, debug=True, inbrowser=True)
