@@ -1,1 +1,2 @@
 vqgan_only.pt filter=lfs diff=lfs merge=lfs -text
+backbone.pth filter=lfs diff=lfs merge=lfs -text
