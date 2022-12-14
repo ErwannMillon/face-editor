@@ -110,7 +110,7 @@ class ImagePromptOptimizer(nn.Module):
     def attn_masking(self, grad):
         print(f"grad.shape = {grad.shape}")
         if self.attn_mask is not None:
-            print("masking")
+            print("masking mult")
             return grad * self.attn_mask
         return grad
 
@@ -124,9 +124,12 @@ class ImagePromptOptimizer(nn.Module):
         for i in tqdm(range(self.iterations)):
             transformed_img = self(vector)
             processed_img = loop_post_process(transformed_img)
-            processed_img.register_hook(self.attn_masking)
+            # processed_img.register_hook(self.attn_masking)
             # p1 = processed_img.retain_grad().grad
             # print(p1)
+            if i < self.iterations - 2:
+              print("masking2")
+              processed_img *= self.attn_mask
             loss = self.get_similarity_loss(pos_prompts, neg_prompts, processed_img)
             optim.zero_grad()
             # p2 = processed_img.grad
@@ -137,7 +140,7 @@ class ImagePromptOptimizer(nn.Module):
             optim.step()
             # return
             # if i % self.iterations // 10 == 0: 
-            #     # self.visualize(processed_img)
+            #     self.visualize(processed_img)
             yield vector
         # if self.make_grid:
             # plt.savefig(f"plot {pos_prompts[0]}.png")
@@ -195,15 +198,20 @@ class ImageState:
         img, latent = blend_paths(self.vqgan, path1, path2, weight=weight, show=False, device=self.device)
         self.blend_latent = latent.to(self.device)
         return self._render_all_transformations()
+    def rescale_mask(self, mask):
+        rep = mask.clone()
+        rep[mask < 0.03] = -1000000
+        rep[mask >= 0.03] = 1
+        return rep
     def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, mask=None):
+        attn_mask = mask
         if img and "mask" in img:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
             attn_mask = torch.ceil(attn_mask[0].to(self.device))
+            torch.save(attn_mask, "lip_mask.pt")
+            attn_mask = self.rescale_mask(attn_mask)
             print(type(attn_mask))
             print(attn_mask.shape)
-        if mask is not None:
-            attn_mask = mask
-        # torch.save(attn_mask, "eyebrow_mask.pt")
         self.prompt_optim.set_params(lr, iterations, attn_mask)
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                 positive_prompts,
