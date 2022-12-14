@@ -1,6 +1,4 @@
-[submodule "CLIP"]
-	path = CLIP
-	url = https://github.com/openai/CLIP.git
-[submodule "taming"]
+
+[submodule "taming-transformers"]
 	path = taming-transformers
 	url = https://github.com/CompVis/taming-transformers.git
