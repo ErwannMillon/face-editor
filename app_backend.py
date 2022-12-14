@@ -136,8 +136,8 @@ class ImagePromptOptimizer(nn.Module):
             # print(p3, p3.shape)
             optim.step()
             # return
-            if i % self.iterations // 10 == 0: 
-                self.visualize(processed_img)
+            # if i % self.iterations // 10 == 0: 
+            #     # self.visualize(processed_img)
             yield vector
         # if self.make_grid:
             # plt.savefig(f"plot {pos_prompts[0]}.png")
