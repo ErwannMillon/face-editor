@@ -79,11 +79,12 @@ class ImagePromptOptimizer(nn.Module):
         self.perceptual_loss = lpips.LPIPS(net='vgg').to(self.device)
     def set_latent(self, latent):
         self.latent = latent.detach().to(self.device)
-    def set_params(self, lr, iterations, attn_mask, lpips_weight):
+    def set_params(self, lr, iterations, attn_mask, lpips_weight, clip_weight):
         self.attn_mask = attn_mask
         self.iterations = iterations
         self.lr = lr
         self.lpips_weight = lpips_weight
+        self.clip_weight = clip_weight
     def forward(self, vector):
         base_latent = self.latent.detach().requires_grad_()
         trans_latent = base_latent + vector
@@ -155,35 +156,33 @@ class ImagePromptOptimizer(nn.Module):
             plt.figure(figsize=(35, 25))
             self.index = 1
         for i in tqdm(range(self.iterations)):
+            optim.zero_grad()
+
             transformed_img = self(vector)
             processed_img = loop_post_process(transformed_img) #* self.attn_mask
             processed_img.retain_grad()
+
             clip_clone = processed_img.clone()
             clip_clone.register_hook(self.attn_masking)
             clip_clone.retain_grad()
-            # p1 = clip_clone.retain_grad().grad
-            # print(p1)
-            # if i < self.iterations - 2:
-              # print("masking2")
-              # processed_img *= self.attn_mask
-            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)  
-            print("clip", clip_loss)
-            clip_loss.backward(retain_graph=True)
+            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone) * self.clip_weight 
+            print("clip loss", clip_loss)
 
             lpips_input = processed_img.clone()
             lpips_input.register_hook(self.attn_masking2)
             lpips_input.retain_grad()
             perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
-            # print("perc: ", perceptual_loss)
+            print("percloss: ", perceptual_loss)
             # print("percweight: ", self.lpips_weight)
             # loss = clip_loss + perceptual_loss
             # print("total", loss)
-            optim.zero_grad()
             clip_loss.backward(retain_graph=True)
-            print("clipewnd")
+            # print("clipewnd")
             perceptual_loss.backward(retain_graph=True)
+            # print("lpipsloss end")
             p2 = processed_img.grad
-            # print("processed_grad initial", get_resized_tensor(p2))
+            print("loss", perceptual_loss + clip_loss)
+            # print("processed_grad final", get_resized_tensor(p2))
             # print(torchvision.transforms.functional.resize(transformed_img.grad, (10, 10)))
             # print(torchvision.transforms.functional.resize(lpips_input.grad, (10, 10)))
             # p3 = processed_img.retain_grad().grad
@@ -197,6 +196,33 @@ class ImagePromptOptimizer(nn.Module):
         if self.make_grid:
             plt.savefig(f"plot {pos_prompts[0]}.png")
             plt.show()
+        print("lpips solo op")
+        for i in range(20):
+            optim.zero_grad()
+
+            transformed_img = self(vector)
+            processed_img = loop_post_process(transformed_img) #* self.attn_mask
+            processed_img.retain_grad()
+
+            lpips_input = processed_img.clone()
+            lpips_input.register_hook(self.attn_masking2)
+            lpips_input.retain_grad()
+            perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
+            # print("perc: ", perceptual_loss)
+            # print("percweight: ", self.lpips_weight)
+            # loss = clip_loss + perceptual_loss
+            # print("total", loss)
+            perceptual_loss.backward(retain_graph=True)
+            print("lpipsloss end")
+            # p2 = processed_img.grad
+            # print("processed_grad final", get_resized_tensor(p2))
+            # print(torchvision.transforms.functional.resize(transformed_img.grad, (10, 10)))
+            # print(torchvision.transforms.functional.resize(lpips_input.grad, (10, 10)))
+            # p3 = processed_img.retain_grad().grad
+            # print(p3, p3.shape)
+            # return
+            optim.step()
+            yield vector
         yield vector if self.return_val == "vector" else self.latent + vector
 
 class ImageState:
@@ -255,7 +281,7 @@ class ImageState:
         rep[mask < 0.03] = -1000000
         rep[mask >= 0.03] = 1
         return rep
-    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, mask=None):
+    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, clip_weight, mask=None):
         # attn_mask = mask
         if img and "mask" in img and img["mask"] is not None:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
@@ -268,7 +294,7 @@ class ImageState:
             attn_mask = mask
             print("mask in apply ", get_resized_tensor(attn_mask), get_resized_tensor(attn_mask).shape)
             # attn_mask = torch.ones_like(img, device=self.device)
-        self.prompt_optim.set_params(lr, iterations, attn_mask, lpips_weight)
+        self.prompt_optim.set_params(lr, iterations, attn_mask, lpips_weight, clip_weight=clip_weight)
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                 positive_prompts,
                                                 negative_prompts)):

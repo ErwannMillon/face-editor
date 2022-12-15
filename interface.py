@@ -88,7 +88,7 @@ with gr.Blocks() as demo:
                     apply_prompts = gr.Button(value="Apply Prompts")
 
         with gr.Column(scale=1):
-            out = gr.Image(interactive=True, tool="sketch", shape=(200, 200))
+            out = gr.Image(tool="sketch", shape=(200, 200))
             test = gr.Image(interactive=False, shape=(200, 200))
             i = gr.Button()
     gender_weight.change(state.apply_gender_vector, inputs=[gender_weight], outputs=out)
