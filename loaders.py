@@ -35,6 +35,11 @@ def load_vqgan(config, ckpt_path=None, is_gumbel=False):
     missing, unexpected = model.load_state_dict(sd, strict=False)
   return model.eval()
 
+def load_ffhq():
+    conf = "2020-11-09T13-33-36_faceshq_vqgan/configs/2020-11-09T13-33-36-project.yaml"
+    ckpt = "2020-11-09T13-33-36_faceshq_vqgan/checkpoints/last.ckpt"
+    vqgan = load_model(load_config(conf), ckpt, True, True)[0]
+
 def reconstruct_with_vqgan(x, model):
   # could also use model(x) for reconstruction but use explicit encoding and decoding here
   z, _, [_, _, indices] = model.encode(x)
