@@ -1,7 +1,6 @@
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
-import torchvision
-mask = torch.load("attn_mask.pt")
-# print(mask.shape)
-# mask = torchvision.transforms.ToTensor()(mask)
-x = torchvision.transforms.functional.resize(mask, (10, 10))
-print(x.shape)
+x = torch.randn((128, 128)).numpy()
+plt.imshow(x, cmap="Blues")
+plt.show()
