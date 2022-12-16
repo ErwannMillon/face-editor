@@ -1,3 +1,4 @@
+from functools import cache
 import importlib
 
 import gradio as gr
@@ -33,7 +34,7 @@ class ProcessorGradientFlow():
     """
     def __init__(self, device="cuda") -> None:
         self.device = device
-        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
         self.image_mean = [0.48145466, 0.4578275, 0.40821073]
         self.image_std = [0.26862954, 0.26130258, 0.27577711]
         self.normalize = torchvision.transforms.Normalize(
@@ -201,9 +202,11 @@ class ImagePromptOptimizer(nn.Module):
             perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
+            print("LPIPS loss: ", perceptual_loss)
             perceptual_loss.backward(retain_graph=True)
             optim.step()
             yield vector
+        # torch.save(vector, "blue_eyes.pt")
         yield vector if self.return_val == "vector" else self.latent + vector
 
 class PromptTransformHistory():
@@ -217,7 +220,7 @@ class ImageState:
         self.device = vqgan.device
         #latentvectors
         self.lip_vector = torch.load("./latent_vectors/lipvector.pt", map_location=self.device)
-        self.red_blue_vector = torch.load("./latent_vectors/red_blue.pt", map_location=self.device)
+        self.red_blue_vector = torch.load("./latent_vectors/2blue_eyes.pt", map_location=self.device)
         self.green_purple_vector = torch.load("./latent_vectors/green_purple.pt", map_location=self.device)
         # self.gender_vector = torch.load("./latent_vectors/gender.pt")
         self.asian_vector = torch.load("./latent_vectors/asian10.pt", map_location=self.device)
@@ -225,7 +228,7 @@ class ImageState:
         self.hair_rb = torch.zeros_like(self.lip_vector)
         self.lip_transforms = torch.zeros_like(self.lip_vector)
         self.gender_transforms = torch.zeros_like(self.lip_vector)
-        self.prompt_transforms = torch.zeros_like(self.lip_vector) 
+        self.current_prompt_transforms = [torch.zeros_like(self.lip_vector)]
         self.hair_gp = torch.zeros_like(self.lip_vector)
         self.blend_latent = None
         self.quant = True
@@ -237,43 +240,47 @@ class ImageState:
     def _decode_latent_to_pil(self, latent):
         current_im = self.vqgan.decode(latent.to(self.device))[0]
         return custom_to_pil(current_im)
-    def _render_all_transformations(self):
-        self.current_vector_transforms = [self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, self.prompt_transforms]
-        new_latent = self.blend_latent + sum(self.current_vector_transforms).to(self.device)
+    def _get_current_vector_transforms(self):
+        current_vector_transforms = (self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, sum(self.current_prompt_transforms))
+        return (self.blend_latent, current_vector_transforms)
+    # @cache
+    def _render_all_transformations(self, blend_latent, current_vector_transforms):
+        # self.current_vector_transforms = [self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, sum(self.current_prompt_transforms)]
+        new_latent = blend_latent + sum(current_vector_transforms)
         if self.quant:
             new_latent, _, _ = self.vqgan.quantize(new_latent.to(self.device))
         return self._decode_latent_to_pil(new_latent)
     def apply_gp_vector(self, weight):
         self.hair_gp = weight * self.green_purple_vector
-        return self._render_all_transformations()
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def apply_rb_vector(self, weight):
         self.hair_rb = weight * self.red_blue_vector
-        return self._render_all_transformations()
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def apply_lip_vector(self, weight):
         self.lip_transforms = weight * self.lip_vector
-        return self._render_all_transformations()
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def update_requant(self, val):
         print(f"val = {val}")
         self.quant = val
-        return self._render_all_transformations()
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def apply_gender_vector(self, weight):
         self.gender_transforms = weight * self.asian_vector
-        return self._render_all_transformations()
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def blend(self, path1, path2, weight):
         _, latent = blend_paths(self.vqgan, path1, path2, weight=weight, show=False, device=self.device)
         self.blend_latent = latent.to(self.device)
-        return self._render_all_transformations()
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def rewind(self, index):
         if not self.transform_history:
             print("no history")
-            return self._render_all_transformations()
+            return self._render_all_transformations(*self._get_current_vector_transforms())
         prompt_transform = self.transform_history[-1]
         latent_index = int(index / 100 * (prompt_transform.iterations - 1))
         print(latent_index)
-        self.prompt_transforms = prompt_transform.transforms[latent_index]
-        print(self.prompt_transforms)
-        print(self.prompt_transforms.mean)
-        return self._render_all_transformations()
+        self.current_prompt_transforms[-1] = prompt_transform.transforms[latent_index]
+        # print(self.current_prompt_transform)
+        # print(self.current_prompt_transforms.mean())
+        return self._render_all_transformations(*self._get_current_vector_transforms())
     def rescale_mask(self, mask):
         rep = mask.clone()
         rep[mask < 0.03] = -1000000
@@ -294,7 +301,9 @@ class ImageState:
         return attn_mask
     def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, clip_weight, reconstruction_steps, mask=None):
         attn_mask = self.get_mask(img, mask)
-        self.transform_history.append(PromptTransformHistory(iterations))
+        transform_log = PromptTransformHistory(iterations + reconstruction_steps)
+        transform_log.transforms.append(torch.zeros_like(self.blend_latent))
+        self.current_prompt_transforms.append(torch.zeros_like(self.blend_latent))
         if log:
             wandb.init(reinit=True, project="face-editor")
             wandb.config.update({"Positive Prompts": positive_prompts})
@@ -310,17 +319,17 @@ class ImageState:
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                                 positive_prompts,
                                                                 negative_prompts)):
-            self.prompt_transforms = transform
-            # self.transform_history[-1].transforms.append(transform.detach())
-            self.transform_history.append(transform.clone().detach())
-            image = self._render_all_transformations()
+            transform_log.transforms.append(transform.clone().detach())
+            self.current_prompt_transforms[-1] = transform
+            image = self._render_all_transformations(*self._get_current_vector_transforms())
             if log:
                 wandb.log({"image": wandb.Image(image)})
             yield image
         if log:
             wandb.finish()
+        self.transform_history.append(transform_log)
         # transform = self.prompt_optim.optimize(self.blend_latent,
                                                 # positive_prompts,
                                                 # negative_prompts)
         # self.prompt_transforms = transform
-        # return self._render_all_transformations()
+        # return self._render_all_transformations(*self._get_current_vector_transforms())
