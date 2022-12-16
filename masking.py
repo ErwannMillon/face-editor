@@ -1,16 +1,21 @@
 import os
-import torch
 import sys
+
 import matplotlib.pyplot as plt
+import torch
+
 sys.path.append("taming-transformers")
 import functools
+
+import gradio as gr
+from transformers import CLIPModel, CLIPProcessor
+
 import edit
 # import importlib
 # importlib.reload(edit)
-from app_backend import ProcessorGradientFlow, ImagePromptOptimizer, ImageState
-from transformers import CLIPProcessor, CLIPModel
+from app_backend import ImagePromptOptimizer, ImageState, ProcessorGradientFlow
 from loaders import load_default
-import gradio as gr
+
 device = "cuda"
 vqgan = load_default(device)
 vqgan.eval()

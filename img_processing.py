@@ -1,15 +1,16 @@
 import io
-import os, sys
-import requests
-import PIL
-from PIL import Image
-from PIL import ImageDraw, ImageFont
-import numpy as np
+import os
+import sys
 
+import numpy as np
+import PIL
+import requests
 import torch
 import torch.nn.functional as F
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
+from PIL import Image, ImageDraw, ImageFont
+
 
 def download_image(url):
     resp = requests.get(url)

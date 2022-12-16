@@ -1,17 +1,18 @@
-import torch
-from PIL import Image
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-import torch.nn.functional as F
+import torch
 import torch.nn as nn
-from gradient_flow_ops import replace_grad, clamp_with_grad
+import torch.nn.functional as F
+from PIL import Image
 from torchvision import transforms
+from tqdm import tqdm
+
 from CLIP import clip as clip_module
-from torchvision import transforms
+from gradient_flow_ops import clamp_with_grad, replace_grad
 from img_processing import custom_to_pil
-from vqgan_latent_ops import vector_quantize
 from latent_utils import get_latent_from_path
 from loaders import load_default
+from vqgan_latent_ops import vector_quantize
+
 
 class MakeCutouts(nn.Module):
     def __init__(self, cut_size, num_cutouts=32, cut_pow=1.):
@@ -171,7 +172,7 @@ def main(device):
     model = VQGAN_CLIP(vqgan, clip)
     latent = get_latent_from_path(image_path, vqgan, device=device)
     prompt = "a picture of a man"
-    from transformers import CLIPProcessor, CLIPModel
+    from transformers import CLIPModel, CLIPProcessor
     hf_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
     hf_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
     emb1 = clip.get_text_embedding(prompt)

@@ -1,15 +1,19 @@
 import os
 import sys
+
 sys.path.append("taming-transformers")
 import functools
-import edit
-from app_backend import ProcessorGradientFlow, ImagePromptOptimizer, ImageState
-from transformers import CLIPProcessor, CLIPModel
-from loaders import load_default
+
 import gradio as gr
-import torch
 import matplotlib.pyplot as plt
-from app_backend import get_resized_tensor
+import torch
+from transformers import CLIPModel, CLIPProcessor
+
+import edit
+from app_backend import (ImagePromptOptimizer, ImageState,
+                         ProcessorGradientFlow, get_resized_tensor)
+from loaders import load_default
+
 device = "cuda"
 vqgan = load_default(device)
 vqgan.eval()
@@ -22,6 +26,7 @@ x = state.blend("./test_data/face.jpeg", "./test_data/face2.jpeg", 0.5)
 torch.manual_seed(10)
 mask = torch.load("nose_mask.pt").to(device)
 from img_processing import custom_to_pil
+
 no_mask=torch.ones_like(mask)
 # mask = rescale_mask(mask)
 # mask = (mask) * -1

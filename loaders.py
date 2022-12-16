@@ -1,12 +1,15 @@
 import importlib
-import yaml
-import torch
-from omegaconf import OmegaConf
-from taming.models.vqgan import VQModel
-from PIL import Image
+
 import numpy as np
 import taming
+import torch
+import yaml
+from omegaconf import OmegaConf
+from PIL import Image
+from taming.models.vqgan import VQModel
+
 from utils import get_device
+
 
 def load_default(device):
     # device = get_device()

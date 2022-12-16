@@ -1,10 +1,13 @@
 import time
-import numpy as np
-from skimage.color import rgb2lab, lab2rgb
+
 import matplotlib.pyplot as plt
-from torch import nn
-import torch.nn.functional as F
+import numpy as np
 import torch
+import torch.nn.functional as F
+from skimage.color import lab2rgb, rgb2lab
+from torch import nn
+
+
 def freeze_module(module):
     for param in module.parameters():
       param.requires_grad = False

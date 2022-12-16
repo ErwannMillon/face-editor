@@ -1,7 +1,9 @@
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
+
 from gradient_flow_ops import ReplaceGrad
+
 replace_grad = ReplaceGrad.apply
 
 def vector_quantize(x, codebook):

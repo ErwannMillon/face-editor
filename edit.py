@@ -1,15 +1,20 @@
-from img_processing import preprocess, preprocess_vqgan, custom_to_pil
 import os
 import sys
+
+from img_processing import custom_to_pil, preprocess, preprocess_vqgan
+
 sys.path.append("taming-transformers")
-import taming
 import glob
-import torch
+
 import gradio as gr
-from loaders import load_config
-from utils import get_device
 import matplotlib.pyplot as plt
 import PIL
+import taming
+import torch
+
+from loaders import load_config
+from utils import get_device
+
 
 def get_embedding(model, path=None, img=None, device="cpu"):
     assert path is None or img is None, "Input either path or tensor"

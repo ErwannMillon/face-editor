@@ -1,6 +1,21 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
-x = torch.randn((128, 128)).numpy()
-plt.imshow(x, cmap="Blues")
-plt.show()
+
+def test():
+
+	one = torch.ones((1, 3))
+	for x in range(10):
+		one = one.add(1)
+		yield one
+
+
+arr = []
+for x in test():
+	print(x)
+	arr.append(x)
+print(arr)
+
+
+
+
+
+	

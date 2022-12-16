@@ -1,6 +1,9 @@
-from img_processing import custom_to_pil, preprocess, preprocess_vqgan
 import matplotlib.pyplot as plt
 import PIL
+
+from img_processing import custom_to_pil, preprocess, preprocess_vqgan
+
+
 def get_latent_from_path(path, model, device="mps"):
     x = preprocess(PIL.Image.open(path), target_image_size=256, map_dalle=False)
     
