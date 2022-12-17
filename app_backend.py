@@ -11,7 +11,6 @@ from torch import nn
 from torchvision.transforms.functional import resize
 from tqdm import tqdm
 from transformers import CLIPModel, CLIPProcessor
-
 import lpips
 from edit import blend_paths
 from img_processing import *
@@ -87,7 +86,7 @@ class ImagePromptOptimizer(nn.Module):
         return -torch.mean(logits)
     def set_latent(self, latent):
         self.latent = latent.detach().to(self.device)
-    def set_params(self, lr, iterations, attn_mask, lpips_weight, reconstruction_steps):
+    def set_params(self, lr, iterations, lpips_weight, reconstruction_steps, attn_mask):
         self.attn_mask = attn_mask
         self.iterations = iterations
         self.lr = lr
@@ -168,21 +167,22 @@ class ImagePromptOptimizer(nn.Module):
             transformed_img = self(vector)
             processed_img = loop_post_process(transformed_img) #* self.attn_mask
             processed_img.retain_grad()
-            clip_clone = processed_img.clone()
-            clip_clone.register_hook(self.attn_masking)
-            clip_clone.retain_grad()
-            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)
-            print("CLIP loss", clip_loss)
             lpips_input = processed_img.clone()
             lpips_input.register_hook(self.attn_masking2)
             lpips_input.retain_grad()
-            perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
-            print("LPIPS loss: ", perceptual_loss)
-            with torch.no_grad():
-                disc_logits = self.disc(transformed_img)
-                disc_loss = self.disc_loss_fn(disc_logits)
-                print(f"disc_loss = {disc_loss}")
-                disc_loss2 = self.disc(processed_img)
+            clip_clone = processed_img.clone()
+            clip_clone.register_hook(self.attn_masking)
+            clip_clone.retain_grad()
+            with torch.autocast("cuda"):
+                clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)
+                print("CLIP loss", clip_loss)
+                perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
+                print("LPIPS loss: ", perceptual_loss)
+                with torch.no_grad():
+                    disc_logits = self.disc(transformed_img)
+                    disc_loss = self.disc_loss_fn(disc_logits)
+                    print(f"disc_loss = {disc_loss}")
+                    disc_loss2 = self.disc(processed_img)
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
                 wandb.log({"Discriminator Loss": disc_loss})
@@ -203,17 +203,18 @@ class ImagePromptOptimizer(nn.Module):
             optim.zero_grad()
             transformed_img = self(vector)
             processed_img = loop_post_process(transformed_img) #* self.attn_mask
-            with torch.no_grad():
-                disc_logits = self.disc(transformed_img)
-                disc_loss = self.disc_loss_fn(disc_logits)
-                print(f"disc_loss = {disc_loss}")
-                disc_loss2 = self.disc(processed_img)
-            # print(f"disc_loss2 = {disc_loss2}")
             processed_img.retain_grad()
             lpips_input = processed_img.clone()
             lpips_input.register_hook(self.attn_masking2)
             lpips_input.retain_grad()
-            perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
+            with torch.autocast("cuda"):
+                perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
+                with torch.no_grad():
+                    disc_logits = self.disc(transformed_img)
+                    disc_loss = self.disc_loss_fn(disc_logits)
+                    print(f"disc_loss = {disc_loss}")
+                    disc_loss2 = self.disc(processed_img)
+            # print(f"disc_loss2 = {disc_loss2}")
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
             print("LPIPS loss: ", perceptual_loss)
@@ -243,128 +244,3 @@ class PromptTransformHistory():
     def __init__(self, iterations) -> None:
         self.iterations = iterations
         self.transforms = []
-        
-class ImageState:
-    def __init__(self, vqgan, prompt_optimizer: ImagePromptOptimizer) -> None:
-        self.vqgan = vqgan
-        self.device = vqgan.device
-        #latentvectors
-        self.lip_vector = torch.load("./latent_vectors/lipvector.pt", map_location=self.device)
-        self.red_blue_vector = torch.load("./latent_vectors/2blue_eyes.pt", map_location=self.device)
-        self.green_purple_vector = torch.load("./latent_vectors/nose_vector.pt", map_location=self.device)
-        # self.gender_vector = torch.load("./latent_vectors/gender.pt")
-        self.asian_vector = torch.load("./latent_vectors/asian10.pt", map_location=self.device)
-        #latent transforms
-        self.hair_rb = torch.zeros_like(self.lip_vector)
-        self.lip_transforms = torch.zeros_like(self.lip_vector)
-        self.gender_transforms = torch.zeros_like(self.lip_vector)
-        self.current_prompt_transforms = [torch.zeros_like(self.lip_vector)]
-        self.hair_gp = torch.zeros_like(self.lip_vector)
-        self.blend_latent = None
-        self.quant = True
-        self.transform_history = []
-        self.prompt_optim = prompt_optimizer
-    def _apply_vector(self, src, vector):
-        new_latent = torch.lerp(src, src + vector, 1)
-        return new_latent
-    def _decode_latent_to_pil(self, latent):
-        current_im = self.vqgan.decode(latent.to(self.device))[0]
-        return custom_to_pil(current_im)
-    def _get_current_vector_transforms(self):
-        current_vector_transforms = (self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, sum(self.current_prompt_transforms))
-        return (self.blend_latent, current_vector_transforms)
-    # @cache
-    @torch.no_grad()
-    def _render_all_transformations(self, blend_latent, current_vector_transforms):
-        # self.current_vector_transforms = [self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, sum(self.current_prompt_transforms)]
-        
-        new_latent = blend_latent + sum(current_vector_transforms)
-        if self.quant:
-            new_latent, _, _ = self.vqgan.quantize(new_latent.to(self.device))
-        return self._decode_latent_to_pil(new_latent)
-    def apply_gp_vector(self, weight):
-        self.hair_gp = weight * self.green_purple_vector
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    def apply_rb_vector(self, weight):
-        self.hair_rb = weight * self.red_blue_vector
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    def apply_lip_vector(self, weight):
-        self.lip_transforms = weight * self.lip_vector
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    def update_requant(self, val):
-        print(f"val = {val}")
-        self.quant = val
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    def apply_gender_vector(self, weight):
-        self.gender_transforms = weight * self.asian_vector
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    @torch.no_grad()
-    def blend(self, path1, path2, weight):
-        _, latent = blend_paths(self.vqgan, path1, path2, weight=weight, show=False, device=self.device)
-        self.blend_latent = latent.to(self.device)
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    @torch.no_grad()
-    def rewind(self, index):
-        if not self.transform_history:
-            print("no history")
-            return self._render_all_transformations(*self._get_current_vector_transforms())
-        prompt_transform = self.transform_history[-1]
-        latent_index = int(index / 100 * (prompt_transform.iterations - 1))
-        print(latent_index)
-        self.current_prompt_transforms[-1] = prompt_transform.transforms[latent_index]
-        # print(self.current_prompt_transform)
-        # print(self.current_prompt_transforms.mean())
-        return self._render_all_transformations(*self._get_current_vector_transforms())
-    def rescale_mask(self, mask):
-        rep = mask.clone()
-        rep[mask < 0.03] = -1000000
-        rep[mask >= 0.03] = 1
-        return rep
-    def get_mask(self, img, mask):
-        if img and "mask" in img and img["mask"] is not None:
-            attn_mask = torchvision.transforms.ToTensor()(img["mask"])
-            attn_mask = torch.ceil(attn_mask[0].to(self.device))
-            # torch.save(attn_mask, "nose_mask.pt")
-            # attn_mask = self.rescale_mask(attn_mask)
-            print(type(attn_mask))
-            print(attn_mask.shape)
-        else:
-            attn_mask = mask
-            print("mask in apply ", get_resized_tensor(attn_mask), get_resized_tensor(attn_mask).shape)
-            # attn_mask = torch.ones_like(img, device=self.device)
-        return attn_mask
-    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, reconstruction_steps, mask=None):
-        attn_mask = self.get_mask(img, mask)
-        transform_log = PromptTransformHistory(iterations + reconstruction_steps)
-        transform_log.transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
-        self.current_prompt_transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
-        if log:
-            wandb.init(reinit=True, project="face-editor")
-            wandb.config.update({"Positive Prompts": positive_prompts})
-            wandb.config.update({"Negative Prompts": negative_prompts})
-            wandb.config.update(dict(
-                lr=lr,
-                iterations=iterations,
-                lpips_weight=lpips_weight
-            ))
-        positive_prompts = [prompt.strip() for prompt in positive_prompts.split("|")]
-        negative_prompts = [prompt.strip() for prompt in negative_prompts.split("|")]
-        self.prompt_optim.set_params(lr, iterations, attn_mask, lpips_weight, reconstruction_steps=reconstruction_steps)
-        for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
-                                                                positive_prompts,
-                                                                negative_prompts)):
-            transform_log.transforms.append(transform.clone().detach())
-            self.current_prompt_transforms[-1] = transform
-            with torch.no_grad():
-                image = self._render_all_transformations(*self._get_current_vector_transforms())
-            if log:
-                wandb.log({"image": wandb.Image(image)})
-            yield image
-        if log:
-            wandb.finish()
-        self.transform_history.append(transform_log)
-        # transform = self.prompt_optim.optimize(self.blend_latent,
-                                                # positive_prompts,
-                                                # negative_prompts)
-        # self.prompt_transforms = transform
-        # return self._render_all_transformations(*self._get_current_vector_transforms())

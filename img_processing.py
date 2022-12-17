@@ -35,7 +35,7 @@ def preprocess_vqgan(x):
   x = 2.*x - 1.
   return x
 
-def custom_to_pil(x, process=True):
+def custom_to_pil(x, process=True, mode="RGB"):
   x = x.detach().cpu()
   if process:
     x = torch.clamp(x, -1., 1.)
@@ -44,8 +44,8 @@ def custom_to_pil(x, process=True):
   if process:
     x = (255*x).astype(np.uint8)
   x = Image.fromarray(x)
-  if not x.mode == "RGB":
-    x = x.convert("RGB")
+  if not x.mode == mode:
+    x = x.convert(mode)
   return x
 
 def get_pil(x):

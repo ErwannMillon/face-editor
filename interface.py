@@ -12,7 +12,8 @@ from transformers import CLIPModel, CLIPProcessor
 import edit
 # import importlib
 # importlib.reload(edit)
-from app_backend import ImagePromptOptimizer, ImageState, ProcessorGradientFlow
+from app_backend import ImagePromptOptimizer, ProcessorGradientFlow
+from ImageState import ImageState
 from loaders import load_default
 
 device = "cuda"
@@ -27,7 +28,7 @@ state = ImageState(vqgan, promptoptim)
 with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column(scale=1):
-            hair_red_blue = gr.Slider(
+            blue_eyes = gr.Slider(
                 label="Blue Eyes",
                 minimum=-.8,
                 maximum=3.,
@@ -59,10 +60,10 @@ with gr.Blocks() as demo:
                 label="Requantize Latents (necessary using text prompts)",
                 value=True,
             )
-            gender_weight = gr.Slider(
-                label="Asian",
+            asian_weight = gr.Slider(
                 minimum=-2.,
                 value=0,
+                label="Asian",
                 maximum=2.,
                 step=0.07,
             )
@@ -71,11 +72,17 @@ with gr.Blocks() as demo:
                     base_img = gr.Image(label="base Image", type="filepath")
                     blend_img = gr.Image(label="image for face blending (optional)", type="filepath")
         with gr.Column(scale=1):
-            out = gr.Image(tool="sketch", shape=(400, 400))
+            out = gr.Image()
+            apply_prompts = gr.Button(value="Apply Prompts")
             rewind = gr.Slider(value=100,
                                 label="Rewind back through a prompt transform: Use this to scroll through the iterations of your prompt transformation.",
                                 minimum=0,
                                 maximum=100)
+            clear = gr.Button(value="Clear all transformations (irreversible)")
+            with gr.Accordion(label="Add Mask"):
+                mask = gr.Image(tool="sketch")
+                set_mask = gr.Button(value="Set mask")
+            clear.click(state.clear_transforms, outputs=[out, mask])
         with gr.Column(scale=1):
             positive_prompts = gr.Textbox(label="Positive prompts",
                                             value="a picture of a woman with a very big nose | a picture of a woman with a large wide nose | a woman with an extremely prominent nose")
@@ -85,32 +92,42 @@ with gr.Blocks() as demo:
                                     maximum=300,
                                     step=1,
                                     value=40,
-                                    label="optimization iterations",)
+                                    label="Iterations: How many steps the model will take to modify the image. Try starting small and seeing how the results turn out, you can always resume with afterwards",)
             learning_rate = gr.Slider(minimum=1e-3,
                                     maximum=6e-1,
                                     value=1e-2,
-                                    label="learning rate")
-           
-            lpips_weight = gr.Slider(minimum=0,
-                                    maximum=50,
-                                    value=1,
-                                    label="Perceptual similarity (high to preserve identity for transformations where the person's identity should not change, recommended when masking)")
-            reconstruction_steps = gr.Slider(minimum=0,
-                                    maximum=50,
-                                    value=15,
-                                    step=1,
-                                    label="Steps to run optimizing only masked perceptual loss. This helps to reconstruct the original identity for prompts that tend to modify the identity too much")
-            apply_prompts = gr.Button(value="Apply Prompts")
-    gender_weight.change(state.apply_gender_vector, inputs=[gender_weight], outputs=out)
-    requantize.change(state.update_requant, inputs=[requantize], outputs=out)
-    lip_size.change(state.apply_lip_vector, inputs=[lip_size], outputs=out)
-    hair_green_purple.change(state.apply_gp_vector, inputs=[hair_green_purple], outputs=out)
-    hair_red_blue.change(state.apply_rb_vector, inputs=[hair_red_blue], outputs=out)
-    blend_weight.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
-    base_img.change(state.blend, inputs=[base_img, base_img, blend_weight], outputs=out)
-    blend_img.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
-    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out, lpips_weight, reconstruction_steps], outputs=out)
-    rewind.change(state.rewind, inputs=[rewind], outputs=out)
+                                    label="Learning Rate: How strong the change in each step will be (you should raise this for bigger changes (for example, changing hair color), and lower it for more minor changes. Raise if changes aren't strong enough")
+            with gr.Accordion(label="Advanced Prompt Editing Options", open=False):
+                lpips_weight = gr.Slider(minimum=0,
+                                        maximum=50,
+                                        value=1,
+                                        label="Perceptual similarity weight (Keeps areas outside of the mask looking similar to the original. It helps isolate the changes you're making to the region inside the mask. If the rest of the image is changing too much while you're trying to change make a localized edit, increase this setting)")
+                reconstruction_steps = gr.Slider(minimum=0,
+                                        maximum=50,
+                                        value=15,
+                                        step=1,
+                                        label="Steps to run at the end of the optimization, optimizing only the masked perceptual loss. If the edit is changing the identity too much, this setting will run steps at the end that will 'pull' the image back towards the original identity")
+                discriminator_steps = gr.Slider(minimum=0,
+                                        maximum=50,
+                                        value=2,
+                                        step=1,
+                                        label="Steps to run at the end, optimizing only the discriminator loss. This helps to reduce artefacts, but because the model is trained on CelebA, this will make your generations look more like generic white celebrities")
+            testim = gr.Image()
+    asian_weight.change(state.apply_gender_vector, inputs=[asian_weight], outputs=[out, mask])
+    lip_size.change(state.apply_lip_vector, inputs=[lip_size], outputs=[out, mask])
+    hair_green_purple.change(state.apply_gp_vector, inputs=[hair_green_purple], outputs=[out, mask])
+    blue_eyes.change(state.apply_rb_vector, inputs=[blue_eyes], outputs=[out, mask])
+
+    blend_weight.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
+    requantize.change(state.update_requant, inputs=[requantize], outputs=[out, mask])
+
+    base_img.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
+    blend_img.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
+
+    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, lpips_weight, reconstruction_steps], outputs=[out, mask])
+    rewind.change(state.rewind, inputs=[rewind], outputs=[out, mask])
+    set_mask.click(state.set_mask, inputs=mask, outputs=testim)
+    # mask.change(state.set_mask, inputs=[mask], outputs=testim)
 if __name__ == "__main__":
     demo.queue()
     demo.launch(debug=True, inbrowser=True)
