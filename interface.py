@@ -91,7 +91,7 @@ with gr.Blocks() as demo:
                                     value=1e-2,
                                     label="learning rate")
            
-            lpips_weight = gr.Slider(minimum=1,
+            lpips_weight = gr.Slider(minimum=0,
                                     maximum=50,
                                     value=1,
                                     label="Perceptual similarity (high to preserve identity for transformations where the person's identity should not change, recommended when masking)")
@@ -109,8 +109,8 @@ with gr.Blocks() as demo:
     blend_weight.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
     base_img.change(state.blend, inputs=[base_img, base_img, blend_weight], outputs=out)
     blend_img.change(state.blend, inputs=[base_img, blend_img, blend_weight], outputs=out)
-    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out, lpips_weight, clip_weight, reconstruction_steps], outputs=out)
+    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, out, lpips_weight, reconstruction_steps], outputs=out)
     rewind.change(state.rewind, inputs=[rewind], outputs=out)
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(share=True, debug=True, inbrowser=True)
+    demo.launch(debug=True, inbrowser=True)

@@ -16,7 +16,7 @@ import lpips
 from edit import blend_paths
 from img_processing import *
 from img_processing import custom_to_pil
-from loaders import load_default
+from loaders import load_default, load_disc
 
 log=False
 # ic.disable()
@@ -80,17 +80,19 @@ class ImagePromptOptimizer(nn.Module):
         self.make_grid = make_grid
         self.return_val = return_val
         self.quantize = quantize
+        self.disc = load_disc(self.device)
         self.lpips_weight = lpips_weight
         self.perceptual_loss = lpips.LPIPS(net='vgg').to(self.device)
+    def disc_loss_fn(self, logits):
+        return -torch.mean(logits)
     def set_latent(self, latent):
         self.latent = latent.detach().to(self.device)
-    def set_params(self, lr, iterations, attn_mask, lpips_weight, clip_weight, reconstruction_steps):
+    def set_params(self, lr, iterations, attn_mask, lpips_weight, reconstruction_steps):
         self.attn_mask = attn_mask
         self.iterations = iterations
         self.lr = lr
         self.lpips_weight = lpips_weight
         self.reconstruction_steps = reconstruction_steps
-        self.clip_weight = clip_weight
     def forward(self, vector):
         base_latent = self.latent.detach().requires_grad_()
         trans_latent = base_latent + vector
@@ -169,20 +171,26 @@ class ImagePromptOptimizer(nn.Module):
             clip_clone = processed_img.clone()
             clip_clone.register_hook(self.attn_masking)
             clip_clone.retain_grad()
-            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone) * self.clip_weight 
+            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)
             print("CLIP loss", clip_loss)
             lpips_input = processed_img.clone()
             lpips_input.register_hook(self.attn_masking2)
             lpips_input.retain_grad()
             perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
             print("LPIPS loss: ", perceptual_loss)
+            with torch.no_grad():
+                disc_logits = self.disc(transformed_img)
+                disc_loss = self.disc_loss_fn(disc_logits)
+                print(f"disc_loss = {disc_loss}")
+                disc_loss2 = self.disc(processed_img)
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
+                wandb.log({"Discriminator Loss": disc_loss})
                 wandb.log({"CLIP Loss": clip_loss})
             clip_loss.backward(retain_graph=True)
             perceptual_loss.backward(retain_graph=True)
             p2 = processed_img.grad
-            print("loss", perceptual_loss + clip_loss)
+            print("Sum Loss", perceptual_loss + clip_loss)
             optim.step()
             # if i % self.iterations // 10 == 0: 
                 # self.visualize(transformed_img)
@@ -195,6 +203,12 @@ class ImagePromptOptimizer(nn.Module):
             optim.zero_grad()
             transformed_img = self(vector)
             processed_img = loop_post_process(transformed_img) #* self.attn_mask
+            with torch.no_grad():
+                disc_logits = self.disc(transformed_img)
+                disc_loss = self.disc_loss_fn(disc_logits)
+                print(f"disc_loss = {disc_loss}")
+                disc_loss2 = self.disc(processed_img)
+            # print(f"disc_loss2 = {disc_loss2}")
             processed_img.retain_grad()
             lpips_input = processed_img.clone()
             lpips_input.register_hook(self.attn_masking2)
@@ -206,7 +220,23 @@ class ImagePromptOptimizer(nn.Module):
             perceptual_loss.backward(retain_graph=True)
             optim.step()
             yield vector
-        # torch.save(vector, "blue_eyes.pt")
+        # torch.save(vector, "nose_vector.pt")
+        print("")
+        print("DISC STEPS")
+        print("*************")
+        for i in range(self.reconstruction_steps):
+            optim.zero_grad()
+            transformed_img = self(vector)
+            processed_img = loop_post_process(transformed_img) #* self.attn_mask
+            disc_logits = self.disc(transformed_img)
+            disc_loss = self.disc_loss_fn(disc_logits)
+            print(f"disc_loss = {disc_loss}")
+            if log:
+                wandb.log({"Disc Loss": disc_loss})
+            print("LPIPS loss: ", perceptual_loss)
+            disc_loss.backward(retain_graph=True)
+            optim.step()
+            yield vector
         yield vector if self.return_val == "vector" else self.latent + vector
 
 class PromptTransformHistory():
@@ -221,7 +251,7 @@ class ImageState:
         #latentvectors
         self.lip_vector = torch.load("./latent_vectors/lipvector.pt", map_location=self.device)
         self.red_blue_vector = torch.load("./latent_vectors/2blue_eyes.pt", map_location=self.device)
-        self.green_purple_vector = torch.load("./latent_vectors/green_purple.pt", map_location=self.device)
+        self.green_purple_vector = torch.load("./latent_vectors/nose_vector.pt", map_location=self.device)
         # self.gender_vector = torch.load("./latent_vectors/gender.pt")
         self.asian_vector = torch.load("./latent_vectors/asian10.pt", map_location=self.device)
         #latent transforms
@@ -244,8 +274,10 @@ class ImageState:
         current_vector_transforms = (self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, sum(self.current_prompt_transforms))
         return (self.blend_latent, current_vector_transforms)
     # @cache
+    @torch.no_grad()
     def _render_all_transformations(self, blend_latent, current_vector_transforms):
         # self.current_vector_transforms = [self.hair_rb, self.lip_transforms, self.hair_gp, self.gender_transforms, sum(self.current_prompt_transforms)]
+        
         new_latent = blend_latent + sum(current_vector_transforms)
         if self.quant:
             new_latent, _, _ = self.vqgan.quantize(new_latent.to(self.device))
@@ -266,10 +298,12 @@ class ImageState:
     def apply_gender_vector(self, weight):
         self.gender_transforms = weight * self.asian_vector
         return self._render_all_transformations(*self._get_current_vector_transforms())
+    @torch.no_grad()
     def blend(self, path1, path2, weight):
         _, latent = blend_paths(self.vqgan, path1, path2, weight=weight, show=False, device=self.device)
         self.blend_latent = latent.to(self.device)
         return self._render_all_transformations(*self._get_current_vector_transforms())
+    @torch.no_grad()
     def rewind(self, index):
         if not self.transform_history:
             print("no history")
@@ -299,11 +333,11 @@ class ImageState:
             print("mask in apply ", get_resized_tensor(attn_mask), get_resized_tensor(attn_mask).shape)
             # attn_mask = torch.ones_like(img, device=self.device)
         return attn_mask
-    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, clip_weight, reconstruction_steps, mask=None):
+    def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, img, lpips_weight, reconstruction_steps, mask=None):
         attn_mask = self.get_mask(img, mask)
         transform_log = PromptTransformHistory(iterations + reconstruction_steps)
-        transform_log.transforms.append(torch.zeros_like(self.blend_latent))
-        self.current_prompt_transforms.append(torch.zeros_like(self.blend_latent))
+        transform_log.transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
+        self.current_prompt_transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
         if log:
             wandb.init(reinit=True, project="face-editor")
             wandb.config.update({"Positive Prompts": positive_prompts})
@@ -315,13 +349,14 @@ class ImageState:
             ))
         positive_prompts = [prompt.strip() for prompt in positive_prompts.split("|")]
         negative_prompts = [prompt.strip() for prompt in negative_prompts.split("|")]
-        self.prompt_optim.set_params(lr, iterations, attn_mask, lpips_weight, clip_weight=clip_weight, reconstruction_steps=reconstruction_steps)
+        self.prompt_optim.set_params(lr, iterations, attn_mask, lpips_weight, reconstruction_steps=reconstruction_steps)
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                                 positive_prompts,
                                                                 negative_prompts)):
             transform_log.transforms.append(transform.clone().detach())
             self.current_prompt_transforms[-1] = transform
-            image = self._render_all_transformations(*self._get_current_vector_transforms())
+            with torch.no_grad():
+                image = self._render_all_transformations(*self._get_current_vector_transforms())
             if log:
                 wandb.log({"image": wandb.Image(image)})
             yield image

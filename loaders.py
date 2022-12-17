@@ -9,7 +9,23 @@ from PIL import Image
 from taming.models.vqgan import VQModel
 
 from utils import get_device
+import discriminator
 
+def load_config(config_path, display=False):
+  config = OmegaConf.load(config_path)
+  if display:
+    print(yaml.dump(OmegaConf.to_container(config)))
+  return config
+
+def load_disc(device):
+    dconf = load_config("disc_config.yaml")
+    sd = torch.load("disc.pt", map_location=device)
+    print(sd.keys())
+    model = discriminator.NLayerDiscriminator()
+    model.load_state_dict(sd, strict=True)
+    model.to(device)
+    return model
+    # print(dconf.keys())
 
 def load_default(device):
     # device = get_device()
@@ -22,11 +38,6 @@ def load_default(device):
     model.to(device)
     return model
 
-def load_config(config_path, display=False):
-  config = OmegaConf.load(config_path)
-  if display:
-    print(yaml.dump(OmegaConf.to_container(config)))
-  return config
 
 def load_vqgan(config, ckpt_path=None, is_gumbel=False):
   if is_gumbel:
