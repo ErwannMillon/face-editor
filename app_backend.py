@@ -16,7 +16,14 @@ from edit import blend_paths
 from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default, load_disc
+import glob
 
+def make_animation():
+    img_dir = "./img_history"
+    if not os.path.exists(img_dir):
+        os.mkdir(img_dir)
+    for filename in glob.glob(img_dir+"/*"):
+        print(filename)
 log=False
 # ic.disable()
 # ic.enable()
@@ -222,25 +229,20 @@ class ImagePromptOptimizer(nn.Module):
             optim.step()
             yield vector
         # torch.save(vector, "nose_vector.pt")
-        print("")
-        print("DISC STEPS")
-        print("*************")
-        for i in range(self.reconstruction_steps):
-            optim.zero_grad()
-            transformed_img = self(vector)
-            processed_img = loop_post_process(transformed_img) #* self.attn_mask
-            disc_logits = self.disc(transformed_img)
-            disc_loss = self.disc_loss_fn(disc_logits)
-            print(f"disc_loss = {disc_loss}")
-            if log:
-                wandb.log({"Disc Loss": disc_loss})
-            print("LPIPS loss: ", perceptual_loss)
-            disc_loss.backward(retain_graph=True)
-            optim.step()
-            yield vector
+        # print("")
+        # print("DISC STEPS")
+        # print("*************")
+        # for i in range(self.reconstruction_steps):
+        #     optim.zero_grad()
+        #     transformed_img = self(vector)
+        #     processed_img = loop_post_process(transformed_img) #* self.attn_mask
+        #     disc_logits = self.disc(transformed_img)
+        #     disc_loss = self.disc_loss_fn(disc_logits)
+        #     print(f"disc_loss = {disc_loss}")
+        #     if log:
+        #         wandb.log({"Disc Loss": disc_loss})
+        #     print("LPIPS loss: ", perceptual_loss)
+        #     disc_loss.backward(retain_graph=True)
+        #     optim.step()
+        #     yield vector
         yield vector if self.return_val == "vector" else self.latent + vector
-
-class PromptTransformHistory():
-    def __init__(self, iterations) -> None:
-        self.iterations = iterations
-        self.transforms = []

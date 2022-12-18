@@ -1,3 +1,4 @@
+from animation import clear_img_dir
 from app_backend import ImagePromptOptimizer, log
 from functools import cache
 import importlib
@@ -13,10 +14,17 @@ from torchvision.transforms.functional import resize
 from tqdm import tqdm
 from transformers import CLIPModel, CLIPProcessor
 import lpips
+from app_backend import get_resized_tensor
 from edit import blend_paths
 from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default, load_disc
+
+num = 0
+class PromptTransformHistory():
+    def __init__(self, iterations) -> None:
+        self.iterations = iterations
+        self.transforms = []
 
 class ImageState:
     def __init__(self, vqgan, prompt_optimizer: ImagePromptOptimizer) -> None:
@@ -41,7 +49,10 @@ class ImageState:
         self.current_prompt_transforms = [torch.zeros_like(self.lip_vector)]
         self.hair_gp = torch.zeros_like(self.lip_vector)
     def clear_transforms(self):
+        global num
         self.init_transforms()
+        clear_img_dir()
+        num = 0
         return self._render_all_transformations()
     def _apply_vector(self, src, vector):
         new_latent = torch.lerp(src, src + vector, 1)
@@ -82,11 +93,17 @@ class ImageState:
         return x
     @torch.no_grad()
     def _render_all_transformations(self, return_twice=True):
+        global num
         current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
         new_latent = self.blend_latent + sum(current_vector_transforms)
         if self.quant:
             new_latent, _, _ = self.vqgan.quantize(new_latent.to(self.device))
         image = self._decode_latent_to_pil(new_latent)
+        img_dir = "./img_history"
+        if not os.path.exists(img_dir):
+            os.mkdir(img_dir)
+        image.save(f"./img_history/img_{num:06}.png")
+        num += 1
         return (image, image) if return_twice else image
     def apply_gp_vector(self, weight):
         self.hair_gp = weight * self.green_purple_vector

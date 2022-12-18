@@ -20,7 +20,7 @@ def load_config(config_path, display=False):
 def load_disc(device):
     dconf = load_config("disc_config.yaml")
     sd = torch.load("disc.pt", map_location=device)
-    print(sd.keys())
+    # print(sd.keys())
     model = discriminator.NLayerDiscriminator()
     model.load_state_dict(sd, strict=True)
     model.to(device)
