@@ -1,2 +1,4 @@
 vqgan_only.pt filter=lfs diff=lfs merge=lfs -text
 backbone.pth filter=lfs diff=lfs merge=lfs -text
+women filter=lfs diff=lfs merge=lfs -text
+men filter=lfs diff=lfs merge=lfs -text
