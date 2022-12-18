@@ -26,14 +26,14 @@ def get_embedding(model, path=None, img=None, device="cpu"):
     return x_latent
 
     
-def blend_paths(model, path1, path2, quantize=False, weight=0.5, show=True, device="cpu"):
+def blend_paths(model, path1, path2, quantize=False, weight=0.5, show=True, device="cuda"):
     x = preprocess(PIL.Image.open(path1), target_image_size=256).to(device)
     y = preprocess(PIL.Image.open(path2), target_image_size=256).to(device)
     x_latent, y_latent = get_embedding(model, path=path1, device=device), get_embedding(model, path=path2, device=device)
-    z = torch.lerp(x_latent.cpu(), y_latent.cpu(), weight)
+    z = torch.lerp(x_latent, y_latent, weight)
     if quantize:
-        z = model.quantize(z.to(device))[0]
-    decoded = model.decode(z.to(device))[0]
+        z = model.quantize(z)[0]
+    decoded = model.decode(z)[0]
     if show:
         plt.figure(figsize=(10, 20))
         plt.subplot(1, 3, 1)

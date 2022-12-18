@@ -1,3 +1,4 @@
+from align import align_from_path
 from animation import clear_img_dir
 from app_backend import ImagePromptOptimizer, log
 from functools import cache
@@ -32,6 +33,8 @@ class ImageState:
         self.device = vqgan.device
         self.blend_latent = None
         self.quant = True
+        self.path1 = None
+        self.path2 = None
         self.transform_history = []
         self.attn_mask = None
         self.prompt_optim = prompt_optimizer
@@ -121,14 +124,19 @@ class ImageState:
     def apply_gender_vector(self, weight):
         self.asian_transform = weight * self.asian_vector
         return self._render_all_transformations()
-    @torch.no_grad()
-    def blend(self, path1, path2, weight):
+    def update_images(self, path1, path2, blend_weight):
         if path1 is None and path2 is None:
             return None
         if path1 is None: path1 = path2
         if path2 is None: path2 = path1
-        _, latent = blend_paths(self.vqgan, path1, path2, weight=weight, show=False, device=self.device)
-        self.blend_latent = latent.to(self.device)
+        self.path1, self.path2 = path1, path2
+        # self.aligned_path1 = align_from_path(path1)
+        # self.aligned_path2 = align_from_path(path2)
+        return self.blend(blend_weight)
+    @torch.no_grad()
+    def blend(self, weight):
+        _, latent = blend_paths(self.vqgan, self.path1, self.path2, weight=weight, show=False, device=self.device)
+        self.blend_latent = latent
         return self._render_all_transformations()
     @torch.no_grad()
     def rewind(self, index):
