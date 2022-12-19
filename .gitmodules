@@ -1,0 +1,3 @@
+[submodule "taming"]
+	path = taming
+	url = https://github.com/CompVis/taming-transformers.git
