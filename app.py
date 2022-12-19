@@ -143,9 +143,9 @@ with gr.Blocks(css="styles.css") as demo:
                                             step=1,
                                             value=20,
                                             label="Iterations: How many steps the model will take to modify the image. Try starting small and seeing how the results turn out, you can always resume with afterwards",)
-                    learning_rate = gr.Slider(minimum=1e-3,
-                                            maximum=6e-1,
-                                            value=1e-2,
+                    learning_rate = gr.Slider(minimum=4e-3,
+                                            maximum=7e-1,
+                                            value=1e-1,
                                             label="Learning Rate: How strong the change in each step will be (you should raise this for bigger changes (for example, changing hair color), and lower it for more minor changes. Raise if changes aren't strong enough")
                 with gr.Accordion(label="Advanced Prompt Editing Options", open=False):
                     lpips_weight = gr.Slider(minimum=0,
@@ -182,5 +182,19 @@ with gr.Blocks(css="styles.css") as demo:
     rewind.change(state.rewind, inputs=[rewind], outputs=[out, mask])
     set_mask.click(state.set_mask, inputs=mask, outputs=testim)
 demo.queue()
+<<<<<<< HEAD
+demo.launch(debug=True, inbrowser=True, enable_queue=True)
+# if __name__ == "__main__":
+    # import argparse
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--debug', action='store_true', default=False, help='Enable debugging output')
+    # args = parser.parse_args()
+    # # if args.debug:
+    # #     state=None
+    # #     promptoptim=None
+    # # else: 
+    # main()
+=======
 demo.launch(debug=True, enable_queue=True)
 
+>>>>>>> refs/remotes/origin/main
