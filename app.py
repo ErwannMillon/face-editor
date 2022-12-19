@@ -27,14 +27,14 @@ vqgan.eval()
 processor = ProcessorGradientFlow(device=device)
 clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 clip.to(device)
-promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
-state = ImageState(vqgan, promptoptim)
 def set_img_from_example(img):
     return state.update_images(img, img, 0)
 def get_cleared_mask():
     return gr.Image.update(value=None)
     # mask.clear()
 with gr.Blocks(css="styles.css") as demo:
+    promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
+    state = ImageState(vqgan, promptoptim)
     with gr.Row():
         with gr.Column(scale=1):
             blue_eyes = gr.Slider(
@@ -167,14 +167,10 @@ with gr.Blocks(css="styles.css") as demo:
     lip_size.change(state.apply_lip_vector, inputs=[lip_size], outputs=[out, mask])
     # hair_green_purple.change(state.apply_gp_vector, inputs=[hair_green_purple], outputs=[out, mask])
     blue_eyes.change(state.apply_rb_vector, inputs=[blue_eyes], outputs=[out, mask])
-
     blend_weight.change(state.blend, inputs=[blend_weight], outputs=[out, mask])
     # requantize.change(state.update_requant, inputs=[requantize], outputs=[out, mask])
-
-
     base_img.change(state.update_images, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
     blend_img.change(state.update_images, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
-
     small_local.click(set_small_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
     major_local.click(set_major_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
     major_global.click(set_major_global, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
