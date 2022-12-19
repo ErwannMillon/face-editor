@@ -1,9 +1,7 @@
 # from align import align_from_path
 from animation import clear_img_dir
 from app_backend import ImagePromptOptimizer, log
-from functools import cache
 import importlib
-
 import gradio as gr
 import matplotlib.pyplot as plt
 import torch
