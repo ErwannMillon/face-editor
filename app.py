@@ -182,19 +182,4 @@ with gr.Blocks(css="styles.css") as demo:
     rewind.change(state.rewind, inputs=[rewind], outputs=[out, mask])
     set_mask.click(state.set_mask, inputs=mask, outputs=testim)
 demo.queue()
-<<<<<<< HEAD
-demo.launch(debug=True, inbrowser=True, enable_queue=True)
-# if __name__ == "__main__":
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--debug', action='store_true', default=False, help='Enable debugging output')
-    # args = parser.parse_args()
-    # # if args.debug:
-    # #     state=None
-    # #     promptoptim=None
-    # # else: 
-    # main()
-=======
 demo.launch(debug=True, enable_queue=True)
-
->>>>>>> refs/remotes/origin/main
