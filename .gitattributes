@@ -7,3 +7,12 @@ test_pics/asian.png filter=lfs diff=lfs merge=lfs -text
 test_pics/brad.jpeg filter=lfs diff=lfs merge=lfs -text
 test_pics/face.jpeg filter=lfs diff=lfs merge=lfs -text
 test_pics/face2.jpeg filter=lfs diff=lfs merge=lfs -text
+latent_vectors filter=lfs diff=lfs merge=lfs -text
+latent_vectors/nose_vector.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/red_blue.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/1blue_eyes.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/2blue_eyes.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/asian10.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/gender.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/green_purple.pt filter=lfs diff=lfs merge=lfs -text
+latent_vectors/lipvector.pt filter=lfs diff=lfs merge=lfs -text
