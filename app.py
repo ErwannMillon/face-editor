@@ -177,12 +177,12 @@ with gr.Blocks(css="styles.css") as demo:
 
     small_local.click(set_small_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
     major_local.click(set_major_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
-    small_local.click(set_major_global, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
+    major_global.click(set_major_global, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
     apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, lpips_weight, reconstruction_steps], outputs=[out, mask])
     rewind.change(state.rewind, inputs=[rewind], outputs=[out, mask])
     set_mask.click(state.set_mask, inputs=mask, outputs=testim)
 demo.queue()
-demo.launch(debug=True, inbrowser=True)
+demo.launch(debug=True, inbrowser=True, enable_queue=True)
 # if __name__ == "__main__":
     # import argparse
     # parser = argparse.ArgumentParser()
