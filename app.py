@@ -139,7 +139,7 @@ with gr.Blocks(css="styles.css") as demo:
                         with gr.Column():
                             major_global = gr.Button(value="Major Global Changes (e.g. change race / gender").style(full_width=False)
                     iterations = gr.Slider(minimum=10,
-                                            maximum=300,
+                                            maximum=60,
                                             step=1,
                                             value=20,
                                             label="Iterations: How many steps the model will take to modify the image. Try starting small and seeing how the results turn out, you can always resume with afterwards",)
