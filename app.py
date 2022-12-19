@@ -13,8 +13,6 @@ import gradio as gr
 from transformers import CLIPModel, CLIPProcessor
 
 import edit
-# import importlib
-# importlib.reload(edit)
 from app_backend import ImagePromptOptimizer, ProcessorGradientFlow
 from ImageState import ImageState
 from loaders import load_default
@@ -27,14 +25,45 @@ vqgan.eval()
 processor = ProcessorGradientFlow(device=device)
 clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 clip.to(device)
-def set_img_from_example(img):
+def set_img_from_example(state, img):
     return state.update_images(img, img, 0)
 def get_cleared_mask():
     return gr.Image.update(value=None)
     # mask.clear()
+
+class StateWrapper:
+    def apply_asian_vector(state, *args, **kwargs):
+        return state, *state[0].apply_asian_vector(*args, **kwargs)
+    def apply_gp_vector(state, *args, **kwargs):
+        return state, *state[0].apply_gp_vector(*args, **kwargs)
+    def apply_lip_vector(state, *args, **kwargs):
+        return state, *state[0].apply_lip_vector(*args, **kwargs)
+    def apply_prompts(state, *args, **kwargs):
+        return state, *state[0].apply_prompts(*args, **kwargs)
+    def apply_rb_vector(state, *args, **kwargs):
+        return state, *state[0].apply_rb_vector(*args, **kwargs)
+    def blend(state, *args, **kwargs):
+        return state, *state[0].blend(*args, **kwargs)
+    def clear_transforms(state, *args, **kwargs):
+        return state, *state[0].clear_transforms(*args, **kwargs)
+    def init_transforms(state, *args, **kwargs):
+        return state, *state[0].init_transforms(*args, **kwargs)
+    def prompt_optim(state, *args, **kwargs):
+        return state, *state[0].prompt_optim(*args, **kwargs)
+    def rescale_mask(state, *args, **kwargs):
+        return state, *state[0].rescale_mask(*args, **kwargs)
+    def rewind(state, *args, **kwargs):
+        return state, *state[0].rewind(*args, **kwargs)
+    def set_mask(state, *args, **kwargs):
+        return state, *state[0].set_mask(*args, **kwargs)
+    def update_images(state, *args, **kwargs):
+        return state, *state[0].update_images(*args, **kwargs)
+    def update_requant(state, *args, **kwargs):
+        return state, *state[0].update_requant(*args, **kwargs)
+    
 with gr.Blocks(css="styles.css") as demo:
-    promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
-    state = ImageState(vqgan, promptoptim)
+    promptoptim = gr.State([ImagePromptOptimizer(vqgan, clip, processor, quantize=True)])
+    state = gr.State([ImageState(vqgan, promptoptim)])
     with gr.Row():
         with gr.Column(scale=1):
             blue_eyes = gr.Slider(
@@ -90,8 +119,8 @@ with gr.Blocks(css="styles.css") as demo:
                     set_mask = gr.Button(value="Set mask")
                     gr.Text(value="this image shows the mask passed to the model when you press set mask (debugging purposes)")
                     testim = gr.Image()
-                    clear_mask = gr.Button(value="Clear mask")
-                    clear_mask.click(get_cleared_mask, outputs=mask)
+                    # # clear_mask = gr.Button(value="Clear mask")
+                    # clear_mask.click(get_cleared_mask, outputs=mask)
             with gr.Row():
                 gr.Examples(
                     examples=glob.glob("test_pics/*"),
@@ -107,9 +136,9 @@ with gr.Blocks(css="styles.css") as demo:
                                 minimum=0,
                                 maximum=100)
 
-            apply_prompts = gr.Button(value="Apply Prompts", elem_id="apply")
-            clear = gr.Button(value="Clear all transformations (irreversible)", elem_id="warning")
-            with gr.Accordion(label="Save Animation", open=False):
+            apply_prompts = gr.Button(value="🎨 Apply Prompts", elem_id="apply")
+            clear = gr.Button(value="❌ Clear all transformations (irreversible)", elem_id="warning")
+            with gr.Accordion(label="💾 Save Animation", open=False):
                 gr.Text(value="Creates an animation of all the steps in the editing process", show_label=False)
                 duration = gr.Number(value=10, label="Duration of the animation in seconds")
                 extend_frames = gr.Checkbox(value=True, label="Make first and last frame longer")
@@ -128,7 +157,7 @@ with gr.Blocks(css="styles.css") as demo:
             gen_prompts.click(get_random_prompts, outputs=[positive_prompts, negative_prompts])
             with gr.Row():
                 with gr.Column():
-                    gr.Text(value="Prompt Editing Configuration", show_label=False)
+                    gr.Text(value="⚙️ Prompt Editing Configuration", show_label=False)
                     with gr.Row():
                         gr.Markdown(value="## Preset Configs", show_label=False)
                     with gr.Row():
@@ -162,20 +191,20 @@ with gr.Blocks(css="styles.css") as demo:
                     #                         step=1,
                     #                         value=0,
                     #                         label="Steps to run at the end, optimizing only the discriminator loss. This helps to reduce artefacts, but because the model is trained on CelebA, this will make your generations look more like generic white celebrities")
-    clear.click(state.clear_transforms, outputs=[out, mask])
-    asian_weight.change(state.apply_gender_vector, inputs=[asian_weight], outputs=[out, mask])
-    lip_size.change(state.apply_lip_vector, inputs=[lip_size], outputs=[out, mask])
-    # hair_green_purple.change(state.apply_gp_vector, inputs=[hair_green_purple], outputs=[out, mask])
-    blue_eyes.change(state.apply_rb_vector, inputs=[blue_eyes], outputs=[out, mask])
-    blend_weight.change(state.blend, inputs=[blend_weight], outputs=[out, mask])
-    # requantize.change(state.update_requant, inputs=[requantize], outputs=[out, mask])
-    base_img.change(state.update_images, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
-    blend_img.change(state.update_images, inputs=[base_img, blend_img, blend_weight], outputs=[out, mask])
-    small_local.click(set_small_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
-    major_local.click(set_major_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
-    major_global.click(set_major_global, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
-    apply_prompts.click(state.apply_prompts, inputs=[positive_prompts, negative_prompts, learning_rate, iterations, lpips_weight, reconstruction_steps], outputs=[out, mask])
-    rewind.change(state.rewind, inputs=[rewind], outputs=[out, mask])
-    set_mask.click(state.set_mask, inputs=mask, outputs=testim)
+    # clear.click(state.clear_transforms, inputs=[state], outputs=[state, out, mask])
+    asian_weight.change(StateWrapper.apply_asian_vector, inputs=[state, asian_weight], outputs=[state, out, mask])
+    lip_size.change(StateWrapper.apply_lip_vector, inputs=[state, lip_size], outputs=[state, out, mask])
+    # hair_green_purple.change(StateWrapper.apply_gp_vector, inputs=[state, hair_green_purple], outputs=[state, out, mask])
+    blue_eyes.change(StateWrapper.apply_rb_vector, inputs=[state, blue_eyes], outputs=[state, out, mask])
+    blend_weight.change(StateWrapper.blend, inputs=[state, blend_weight], outputs=[state, out, mask])
+    # requantize.change(StateWrapper.update_requant, inputs=[state, requantize], outputs=[state, out, mask])
+    base_img.change(StateWrapper.update_images, inputs=[state, base_img, blend_img, blend_weight], outputs=[state, out, mask])
+    blend_img.change(StateWrapper.update_images, inputs=[state, base_img, blend_img, blend_weight], outputs=[state, out, mask])
+    small_local.click(set_small_local, outputs=[state, iterations, learning_rate, lpips_weight, reconstruction_steps])
+    major_local.click(set_major_local, outputs=[state, iterations, learning_rate, lpips_weight, reconstruction_steps])
+    major_global.click(set_major_global, outputs=[state, iterations, learning_rate, lpips_weight, reconstruction_steps])
+    apply_prompts.click(StateWrapper.apply_prompts, inputs=[state, positive_prompts, negative_prompts, learning_rate, iterations, lpips_weight, reconstruction_steps], outputs=[state, out, mask])
+    rewind.change(StateWrapper.rewind, inputs=[state, rewind], outputs=[state, out, mask])
+    set_mask.click(StateWrapper.set_mask, inputs=mask, outputs=testim)
 demo.queue()
 demo.launch(debug=True, enable_queue=True)

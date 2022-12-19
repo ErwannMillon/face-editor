@@ -65,7 +65,7 @@ class ImageState:
     #     current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
     #     return (self.blend_latent, current_vector_transforms)
     # @cache
-    def get_mask(self, img, mask=None):
+    def _get_mask(self, img, mask=None):
         if img and "mask" in img and img["mask"] is not None:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
             attn_mask = torch.ceil(attn_mask[0].to(self.device))
@@ -81,7 +81,7 @@ class ImageState:
             print("mask in apply ", get_resized_tensor(attn_mask), get_resized_tensor(attn_mask).shape)
         return attn_mask
     def set_mask(self, img):
-        attn_mask = self.get_mask(img)
+        attn_mask = self._get_mask(img)
         self.attn_mask = attn_mask
             # attn_mask = torch.ones_like(img, device=self.device)
         x = attn_mask.clone()
@@ -119,7 +119,7 @@ class ImageState:
         print(f"val = {val}")
         self.quant = val
         return self._render_all_transformations()
-    def apply_gender_vector(self, weight):
+    def apply_asian_vector(self, weight):
         self.asian_transform = weight * self.asian_vector
         return self._render_all_transformations()
     def update_images(self, path1, path2, blend_weight):
