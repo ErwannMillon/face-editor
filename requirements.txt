@@ -9,7 +9,6 @@ numpy
 omegaconf
 opencv_python_headless
 Pillow
-prompts
 pudb
 pytorch_lightning
 PyYAML
