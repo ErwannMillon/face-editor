@@ -174,19 +174,13 @@ class ImagePromptOptimizer(nn.Module):
             clip_clone = processed_img.clone()
             clip_clone.register_hook(self.attn_masking)
             clip_clone.retain_grad()
-            # with torch.autocast("cuda"):
-            clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)
-            print("CLIP loss", clip_loss)
-            perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
-            print("LPIPS loss: ", perceptual_loss)
-                # with torch.no_grad():
-                #     disc_logits = self.disc(transformed_img)
-                #     disc_loss = self.disc_loss_fn(disc_logits)
-                #     print(f"disc_loss = {disc_loss}")
-                #     disc_loss2 = self.disc(processed_img)
+            with torch.autocast("cuda"):
+                clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)
+                print("CLIP loss", clip_loss)
+                perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
+                print("LPIPS loss: ", perceptual_loss)
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
-                # wandb.log({"Discriminator Loss": disc_loss})
                 wandb.log({"CLIP Loss": clip_loss})
             clip_loss.backward(retain_graph=True)
             perceptual_loss.backward(retain_graph=True)
@@ -208,14 +202,8 @@ class ImagePromptOptimizer(nn.Module):
             lpips_input = processed_img.clone()
             lpips_input.register_hook(self.attn_masking2)
             lpips_input.retain_grad()
-            # with torch.autocast("cuda"):
-            perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
-                # with torch.no_grad():
-                #     disc_logits = self.disc(transformed_img)
-                #     disc_loss = self.disc_loss_fn(disc_logits)
-                #     print(f"disc_loss = {disc_loss}")
-                #     disc_loss2 = self.disc(processed_img)
-            # print(f"disc_loss2 = {disc_loss2}")
+            with torch.autocast("cuda"):
+                perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
             print("LPIPS loss: ", perceptual_loss)

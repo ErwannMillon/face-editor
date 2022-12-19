@@ -36,6 +36,7 @@ def load_default(device):
     sd = torch.load("./vqgan_only.pt", map_location=device)
     model.load_state_dict(sd, strict=True)
     model.to(device)
+    del sd
     return model
 
 

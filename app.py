@@ -19,7 +19,7 @@ from loaders import load_default
 from animation import create_gif
 from prompts import get_random_prompts
 
-device = "cuda"
+device = "cpu"
 vqgan = load_default(device)
 vqgan.eval()
 processor = ProcessorGradientFlow(device=device)
@@ -62,7 +62,7 @@ class StateWrapper:
         return state, *state[0].update_requant(*args, **kwargs)
     
 with gr.Blocks(css="styles.css") as demo:
-    promptoptim = gr.State([ImagePromptOptimizer(vqgan, clip, processor, quantize=True)])
+    promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
     state = gr.State([ImageState(vqgan, promptoptim)])
     with gr.Row():
         with gr.Column(scale=1):
