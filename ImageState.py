@@ -1,6 +1,6 @@
 # from align import align_from_path
 from animation import clear_img_dir
-from app_backend import ImagePromptOptimizer, log
+from backend import ImagePromptOptimizer, log
 import importlib
 import gradio as gr
 import matplotlib.pyplot as plt
@@ -13,12 +13,13 @@ from torchvision.transforms.functional import resize
 from tqdm import tqdm
 from transformers import CLIPModel, CLIPProcessor
 import lpips
-from app_backend import get_resized_tensor
+from backend import get_resized_tensor
 from edit import blend_paths
 from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default
-
+# from app import vqgan
+global vqgan
 num = 0
 class PromptTransformHistory():
     def __init__(self, iterations) -> None:
@@ -27,6 +28,7 @@ class PromptTransformHistory():
 
 class ImageState:
     def __init__(self, vqgan, prompt_optimizer: ImagePromptOptimizer) -> None:
+        # global vqgan
         self.vqgan = vqgan
         self.device = vqgan.device
         self.blend_latent = None
@@ -59,6 +61,7 @@ class ImageState:
         new_latent = torch.lerp(src, src + vector, 1)
         return new_latent
     def _decode_latent_to_pil(self, latent):
+        # global vqgan
         current_im = self.vqgan.decode(latent.to(self.device))[0]
         return custom_to_pil(current_im)
     # def _get_current_vector_transforms(self):
@@ -95,6 +98,7 @@ class ImageState:
     @torch.no_grad()
     def _render_all_transformations(self, return_twice=True):
         global num
+        # global vqgan
         current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
         new_latent = self.blend_latent + sum(current_vector_transforms)
         if self.quant:

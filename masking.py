@@ -13,7 +13,7 @@ from transformers import CLIPModel, CLIPProcessor
 import edit
 # import importlib
 # importlib.reload(edit)
-from app_backend import ImagePromptOptimizer, ImageState, ProcessorGradientFlow
+from backend import ImagePromptOptimizer, ImageState, ProcessorGradientFlow
 from loaders import load_default
 
 device = "cuda"
