@@ -25,6 +25,7 @@ vqgan.eval()
 processor = ProcessorGradientFlow(device=device)
 clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 clip.to(device)
+promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
 def set_img_from_example(state, img):
     return state.update_images(img, img, 0)
 def get_cleared_mask():
@@ -62,7 +63,6 @@ class StateWrapper:
         return state, *state[0].update_requant(*args, **kwargs)
     
 with gr.Blocks(css="styles.css") as demo:
-    promptoptim = ImagePromptOptimizer(vqgan, clip, processor, quantize=True)
     state = gr.State([ImageState(vqgan, promptoptim)])
     with gr.Row():
         with gr.Column(scale=1):
