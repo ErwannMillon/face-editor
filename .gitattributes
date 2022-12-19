@@ -1,1 +1,9 @@
 vqgan_only.pt filter=lfs diff=lfs merge=lfs -text
+test_pics filter=lfs diff=lfs merge=lfs -text
+test_pics/pexels-andrea-piacquadio-762020.png filter=lfs diff=lfs merge=lfs -text
+test_pics/pexels-creation-hill-1681010.png filter=lfs diff=lfs merge=lfs -text
+test_pics/pexels-meruyert-gonullu-7244734.png filter=lfs diff=lfs merge=lfs -text
+test_pics/asian.png filter=lfs diff=lfs merge=lfs -text
+test_pics/brad.jpeg filter=lfs diff=lfs merge=lfs -text
+test_pics/face.jpeg filter=lfs diff=lfs merge=lfs -text
+test_pics/face2.jpeg filter=lfs diff=lfs merge=lfs -text
