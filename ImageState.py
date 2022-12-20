@@ -78,7 +78,7 @@ class ImageState:
     def clear_transforms(self):
         global num
         self.init_transforms()
-        clear_img_dir()
+        clear_img_dir("./img_history")
         num = 0
         return self._render_all_transformations()
     def _apply_vector(self, src, vector):
@@ -151,7 +151,11 @@ class ImageState:
         return self._render_all_transformations()
     def update_images(self, path1, path2, blend_weight):
         if path1 is None and path2 is None:
+            print("no paths")
             return None
+        if path1 == path2:
+            print("paths are the same")
+            print(path1)
         if path1 is None: path1 = path2
         if path2 is None: path2 = path1
         self.path1, self.path2 = path1, path2
@@ -170,7 +174,7 @@ class ImageState:
         prompt_transform = self.transform_history[-1]
         latent_index = int(index / 100 * (prompt_transform.iterations - 1))
         print(latent_index)
-        self.current_prompt_transforms[-1] = prompt_transform.transforms[latent_index]
+        self.current_prompt_transforms[-1] = prompt_transform.transforms[latent_index].to(self.device)
         return self._render_all_transformations()
     # def rescale_mask(self, mask):
     #     rep = mask.clone()
@@ -196,7 +200,7 @@ class ImageState:
         for i, transform in enumerate(self.prompt_optim.optimize(self.blend_latent,
                                                                 positive_prompts,
                                                                 negative_prompts)):
-            transform_log.transforms.append(transform.clone().detach())
+            transform_log.transforms.append(transform.detach().cpu())
             self.current_prompt_transforms[-1] = transform
             with torch.no_grad():
                 image = self._render_all_transformations(return_twice=False)
