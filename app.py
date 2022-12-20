@@ -155,9 +155,9 @@ with gr.Blocks(css="styles.css") as demo:
             gr.Markdown(value="""## ✍️ Prompt Editing
             See readme for a prompting guide. Use the '|' symbol to separate prompts. Use the "Add mask" section to make local edits (Remember to click Set Mask!). Negative prompts are highly recommended""", show_label=False)
             positive_prompts = gr.Textbox(label="Positive prompts",
-                                            value="a picture of a woman with a very big nose | a picture of a woman with a large wide nose | a woman with an extremely prominent nose")
+                                            value="A picture of a handsome man | a picture of a masculine man",)
             negative_prompts = gr.Textbox(label="Negative prompts",
-                                            value="a picture of a person with a tiny nose | a picture of a person with a very thin nose")
+                                            value="a picture of a woman | a picture of a feminine person")
             gen_prompts = gr.Button(value="🎲 Random prompts")
             gen_prompts.click(get_random_prompts, outputs=[positive_prompts, negative_prompts])
             with gr.Row():
