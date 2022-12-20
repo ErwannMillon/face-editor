@@ -1,4 +1,7 @@
 # from align import align_from_path
+import imageio
+import glob
+import uuid
 from animation import clear_img_dir
 from backend import ImagePromptOptimizer, log
 import importlib
@@ -38,6 +41,9 @@ class ImageState:
         self.transform_history = []
         self.attn_mask = None
         self.prompt_optim = prompt_optimizer
+        self.state_id = "./" + str(uuid.uuid4())
+        print("NEW INSTANCE")
+        print(self.state_id)
         self._load_vectors()
         self.init_transforms()
     def _load_vectors(self):
@@ -45,6 +51,24 @@ class ImageState:
         self.red_blue_vector = torch.load("./latent_vectors/2blue_eyes.pt", map_location=self.device)
         self.green_purple_vector = torch.load("./latent_vectors/nose_vector.pt", map_location=self.device)
         self.asian_vector = torch.load("./latent_vectors/asian10.pt", map_location=self.device)
+    def create_gif(self, total_duration, extend_frames, gif_name="face_edit.gif"):
+        images = []
+        folder = self.state_id
+        paths = glob.glob(folder + "/*")
+        frame_duration = total_duration / len(paths)
+        print(len(paths), "frame dur", frame_duration)
+        durations = [frame_duration] * len(paths)
+        if extend_frames:
+            durations [0] = 1.5
+            durations [-1] = 3
+        for file_name in os.listdir(folder):
+            if file_name.endswith('.png'):
+                file_path = os.path.join(folder, file_name)
+                images.append(imageio.imread(file_path))
+        # images[0] = images[0].set_meta_data({'duration': 1})
+        # images[-1] = images[-1].set_meta_data({'duration': 1})
+        imageio.mimsave(gif_name, images, duration=durations)
+        return gif_name
     def init_transforms(self):
         self.blue_eyes = torch.zeros_like(self.lip_vector)
         self.lip_size = torch.zeros_like(self.lip_vector)
@@ -104,10 +128,10 @@ class ImageState:
         if self.quant:
             new_latent, _, _ = self.vqgan.quantize(new_latent.to(self.device))
         image = self._decode_latent_to_pil(new_latent)
-        img_dir = "./img_history"
+        img_dir = self.state_id
         if not os.path.exists(img_dir):
             os.mkdir(img_dir)
-        image.save(f"./img_history/img_{num:06}.png")
+        image.save(f"{img_dir}/img_{num:06}.png")
         num += 1
         return (image, image) if return_twice else image
     def apply_gp_vector(self, weight):
@@ -149,14 +173,12 @@ class ImageState:
         latent_index = int(index / 100 * (prompt_transform.iterations - 1))
         print(latent_index)
         self.current_prompt_transforms[-1] = prompt_transform.transforms[latent_index]
-        # print(self.current_prompt_transform)
-        # print(self.current_prompt_transforms.mean())
         return self._render_all_transformations()
-    def rescale_mask(self, mask):
-        rep = mask.clone()
-        rep[mask < 0.03] = -1000000
-        rep[mask >= 0.03] = 1
-        return rep
+    # def rescale_mask(self, mask):
+    #     rep = mask.clone()
+    #     rep[mask < 0.03] = -1000000
+    #     rep[mask >= 0.03] = 1
+    #     return rep
     def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, lpips_weight, reconstruction_steps):
         transform_log = PromptTransformHistory(iterations + reconstruction_steps)
         transform_log.transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))

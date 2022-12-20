@@ -6,7 +6,8 @@ import wandb
 import torch
 
 from configs import set_major_global, set_major_local, set_small_local
-
+import uuid 
+# print()'
 sys.path.append("taming-transformers")
 
 import gradio as gr
@@ -37,6 +38,8 @@ def get_cleared_mask():
     # mask.clear()
 
 class StateWrapper:
+    def create_gif(state, *args, **kwargs):
+        return state, state[0].create_gif(*args, **kwargs)
     def apply_asian_vector(state, *args, **kwargs):
         return state, *state[0].apply_asian_vector(*args, **kwargs)
     def apply_gp_vector(state, *args, **kwargs):
@@ -141,7 +144,7 @@ with gr.Blocks(css="styles.css") as demo:
                                 minimum=0,
                                 maximum=100)
 
-            apply_prompts = gr.Button(value="🎨 Apply Prompts", elem_id="apply")
+            apply_prompts = gr.Button(variant="primary", value="🎨 Apply Prompts", elem_id="apply")
             clear = gr.Button(value="❌ Clear all transformations (irreversible)", elem_id="warning")
             with gr.Accordion(label="💾 Save Animation", open=False):
                 gr.Text(value="Creates an animation of all the steps in the editing process", show_label=False)
@@ -149,7 +152,7 @@ with gr.Blocks(css="styles.css") as demo:
                 extend_frames = gr.Checkbox(value=True, label="Make first and last frame longer")
                 gif = gr.File(interactive=False)
                 create_animation = gr.Button(value="Create Animation")
-                create_animation.click(create_gif, inputs=[duration, extend_frames], outputs=gif)
+                create_animation.click(StateWrapper.create_gif, inputs=[state, duration, extend_frames], outputs=[state, gif])
 
         with gr.Column(scale=1):
             gr.Markdown(value="""## Text Prompting
@@ -166,12 +169,12 @@ with gr.Blocks(css="styles.css") as demo:
                     with gr.Row():
                         gr.Markdown(value="## Preset Configs", show_label=False)
                     with gr.Row():
-                        with gr.Column():
-                            small_local = gr.Button(value="Small Masked Changes (e.g. add lipstick)", elem_id="small_local").style(full_width=False)
-                        with gr.Column():
-                            major_local = gr.Button(value="Major Masked Changes (e.g. change hair color or nose size)").style(full_width=False)
-                        with gr.Column():
-                            major_global = gr.Button(value="Major Global Changes (e.g. change race / gender").style(full_width=False)
+                        # with gr.Column():
+                        small_local = gr.Button(value="Small Masked Changes (e.g. add lipstick)", elem_id="small_local").style(full_width=False)
+                        # with gr.Column():
+                        major_local = gr.Button(value="Major Masked Changes (e.g. change hair color or nose size)").style(full_width=False)
+                        # with gr.Column():
+                        major_global = gr.Button(value="Major Global Changes (e.g. change race / gender").style(full_width=False)
                     iterations = gr.Slider(minimum=10,
                                             maximum=60,
                                             step=1,
@@ -181,14 +184,13 @@ with gr.Blocks(css="styles.css") as demo:
                                             maximum=7e-1,
                                             value=1e-1,
                                             label="Learning Rate: How strong the change in each step will be (you should raise this for bigger changes (for example, changing hair color), and lower it for more minor changes. Raise if changes aren't strong enough")
-                with gr.Accordion(label="Advanced Prompt Editing Options", open=False):
                     lpips_weight = gr.Slider(minimum=0,
                                             maximum=50,
                                             value=1,
                                             label="Perceptual similarity weight (Keeps areas outside of the mask looking similar to the original. Increase if the rest of the image is changing too much while you're trying to change make a localized edit")
                     reconstruction_steps = gr.Slider(minimum=0,
                                             maximum=50,
-                                            value=15,
+                                            value=3,
                                             step=1,
                                             label="Steps to run at the end of the optimization, optimizing only the masked perceptual loss. If the edit is changing the identity too much, this setting will run steps at the end that will 'pull' the image back towards the original identity")
                     # discriminator_steps = gr.Slider(minimum=0,
@@ -196,7 +198,7 @@ with gr.Blocks(css="styles.css") as demo:
                     #                         step=1,
                     #                         value=0,
                     #                         label="Steps to run at the end, optimizing only the discriminator loss. This helps to reduce artefacts, but because the model is trained on CelebA, this will make your generations look more like generic white celebrities")
-    clear.click(state.clear_transforms, inputs=[state], outputs=[state, out, mask])
+    clear.click(StateWrapper.clear_transforms, inputs=[state], outputs=[state, out, mask])
     asian_weight.change(StateWrapper.apply_asian_vector, inputs=[state, asian_weight], outputs=[state, out, mask])
     lip_size.change(StateWrapper.apply_lip_vector, inputs=[state, lip_size], outputs=[state, out, mask])
     # hair_green_purple.change(StateWrapper.apply_gp_vector, inputs=[state, hair_green_purple], outputs=[state, out, mask])
