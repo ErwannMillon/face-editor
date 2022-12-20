@@ -17,6 +17,7 @@ from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default
 import glob
+import gc
 
 global log
 log=False

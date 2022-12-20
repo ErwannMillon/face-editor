@@ -1,4 +1,5 @@
 # from align import align_from_path
+import gc
 import imageio
 import glob
 import uuid
@@ -21,8 +22,6 @@ from edit import blend_paths
 from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default
-# from app import vqgan
-global vqgan
 num = 0
 class PromptTransformHistory():
     def __init__(self, iterations) -> None:
@@ -42,7 +41,6 @@ class ImageState:
         self.attn_mask = None
         self.prompt_optim = prompt_optimizer
         self.state_id = None
-        # print("NEW INSTANCE")
         print(self.state_id)
         self._load_vectors()
         self.init_transforms()
@@ -65,8 +63,6 @@ class ImageState:
             if file_name.endswith('.png'):
                 file_path = os.path.join(folder, file_name)
                 images.append(imageio.imread(file_path))
-        # images[0] = images[0].set_meta_data({'duration': 1})
-        # images[-1] = images[-1].set_meta_data({'duration': 1})
         imageio.mimsave(gif_name, images, duration=durations)
         return gif_name
     def init_transforms(self):
@@ -85,12 +81,8 @@ class ImageState:
         new_latent = torch.lerp(src, src + vector, 1)
         return new_latent
     def _decode_latent_to_pil(self, latent):
-        # global vqgan
         current_im = self.vqgan.decode(latent.to(self.device))[0]
         return custom_to_pil(current_im)
-    # def _get_current_vector_transforms(self):
-    #     current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
-    #     return (self.blend_latent, current_vector_transforms)
     def _get_mask(self, img, mask=None):
         if img and "mask" in img and img["mask"] is not None:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
@@ -180,11 +172,6 @@ class ImageState:
         print(latent_index)
         self.current_prompt_transforms[-1] = prompt_transform.transforms[latent_index].to(self.device)
         return self._render_all_transformations()
-    # def rescale_mask(self, mask):
-    #     rep = mask.clone()
-    #     rep[mask < 0.03] = -1000000
-    #     rep[mask >= 0.03] = 1
-    #     return rep
     def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, lpips_weight, reconstruction_steps):
         if self.state_id is None:
             self.state_id = "./" + str(uuid.uuid4())
@@ -217,6 +204,8 @@ class ImageState:
             wandb.finish()
         self.attn_mask = None
         self.transform_history.append(transform_log)
+        gc.collect()
+        torch.cuda.empty_cache()
         # transform = self.prompt_optim.optimize(self.blend_latent,
                                                 # positive_prompts,
                                                 # negative_prompts)
