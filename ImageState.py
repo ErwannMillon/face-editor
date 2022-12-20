@@ -41,7 +41,7 @@ class ImageState:
         self.transform_history = []
         self.attn_mask = None
         self.prompt_optim = prompt_optimizer
-        self.state_id = "./" + str(uuid.uuid4())
+        self.state_id = "./img_history"
         print("NEW INSTANCE")
         print(self.state_id)
         self._load_vectors()
@@ -91,7 +91,6 @@ class ImageState:
     # def _get_current_vector_transforms(self):
     #     current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
     #     return (self.blend_latent, current_vector_transforms)
-    # @cache
     def _get_mask(self, img, mask=None):
         if img and "mask" in img and img["mask"] is not None:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
@@ -156,8 +155,7 @@ class ImageState:
         if path1 is None: path1 = path2
         if path2 is None: path2 = path1
         self.path1, self.path2 = path1, path2
-        # self.aligned_path1 = align_from_path(path1)
-        # self.aligned_path2 = align_from_path(path2)
+        clear_img_dir(self.state_id)
         return self.blend(blend_weight)
     @torch.no_grad()
     def blend(self, weight):

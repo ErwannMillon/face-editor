@@ -47,6 +47,7 @@ class StateWrapper:
     def apply_lip_vector(state, *args, **kwargs):
         return state, *state[0].apply_lip_vector(*args, **kwargs)
     def apply_prompts(state, *args, **kwargs):
+        print(state[1])
         for image in state[0].apply_prompts(*args, **kwargs):
             yield state, *image
     def apply_rb_vector(state, *args, **kwargs):
@@ -69,11 +70,16 @@ class StateWrapper:
         return state, *state[0].update_images(*args, **kwargs)
     def update_requant(state, *args, **kwargs):
         return state, *state[0].update_requant(*args, **kwargs)
-    
+def ret_id(id):
+    print(id)
+    return(id)
 with gr.Blocks(css="styles.css") as demo:
-    state = gr.State([ImageState(vqgan, promptoptim)])
+    id = gr.State(str(uuid.uuid4()))
+    state = gr.State([ImageState(vqgan, promptoptim), str(uuid.uuid4())])
     with gr.Row():
         with gr.Column(scale=1):
+            x = gr.Button(label="asd")
+            x.click(ret_id, inputs=id, outputs=id)
             blue_eyes = gr.Slider(
                 label="Blue Eyes",
                 minimum=-.8,
@@ -192,7 +198,7 @@ with gr.Blocks(css="styles.css") as demo:
                                             maximum=50,
                                             value=3,
                                             step=1,
-                                            label="Steps to run at the end of the optimization, optimizing only the masked perceptual loss. If the edit is changing the identity too much, this setting will run steps at the end that will 'pull' the image back towards the original identity")
+                                            label="Steps to run at the end of the optimization, optimizing only the masked perceptual loss. If the edit is changing the identity too much, this setting will run steps at the end that 'pull' the image back towards the original identity")
                     # discriminator_steps = gr.Slider(minimum=0,
                     #                         maximum=50,
                     #                         step=1,
