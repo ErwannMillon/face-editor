@@ -23,6 +23,7 @@ from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default
 num = 0
+
 class PromptTransformHistory():
     def __init__(self, iterations) -> None:
         self.iterations = iterations
@@ -115,7 +116,7 @@ class ImageState:
         global num
         # global vqgan
         if self.state_id is None:
-            self.state_id = str(uuid.uuid4())
+            self.state_id = "./img_history/" + str(uuid.uuid4())
             print("redner all", self.state_id)
         current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
         new_latent = self.blend_latent + sum(current_vector_transforms)
@@ -174,7 +175,7 @@ class ImageState:
         return self._render_all_transformations()
     def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, lpips_weight, reconstruction_steps):
         if self.state_id is None:
-            self.state_id = "./" + str(uuid.uuid4())
+            self.state_id = "./img_history/" + str(uuid.uuid4())
         transform_log = PromptTransformHistory(iterations + reconstruction_steps)
         transform_log.transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
         self.current_prompt_transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
