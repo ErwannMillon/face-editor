@@ -153,7 +153,7 @@ with gr.Blocks(css="styles.css") as demo:
 
         with gr.Column(scale=1):
             gr.Markdown(value="""## ✍️ Prompt Editing
-            See readme for a prompting guide. Use the '|' symbol to separate prompts. Use the "Add mask" section to make local edits. Negative prompts are highly recommended""", show_label=False)
+            See readme for a prompting guide. Use the '|' symbol to separate prompts. Use the "Add mask" section to make local edits (Remember to click Set Mask!). Negative prompts are highly recommended""", show_label=False)
             positive_prompts = gr.Textbox(label="Positive prompts",
                                             value="a picture of a woman with a very big nose | a picture of a woman with a large wide nose | a woman with an extremely prominent nose")
             negative_prompts = gr.Textbox(label="Negative prompts",
@@ -173,11 +173,11 @@ with gr.Blocks(css="styles.css") as demo:
                         - I recommend starting prompts with 'a picture of a'
                         - To avoid shifts in gender, you can use 'a person' instead of 'a man' or 'a woman', especially in the negative prompts. 
                         - The more 'out-of-domain' the prompts are, the more you need to increase the learning rate and decrease the perceptual loss weight. For example, trying to make a black person have platinum blond hair is more out-of-domain than the same transformation on a caucasian person. 
-                        - 
+                        - Example: Higher config values, like learning rate: 0.7, perceptual loss weight: 35 can be used to make major out-of-domain changes.
                         """)
                     with gr.Row():
                         # with gr.Column():
-                        presets = gr.Dropdown(default="Select a preset", label="Preset Configs", choices=["Small Masked Changes (e.g. add lipstick)", "Major Masked Changes (e.g. change hair color or nose size)", "Major Global Changes (e.g. change race / gender"])
+                        presets = gr.Dropdown(value="Select a preset", label="Preset Configs", choices=["Small Masked Changes (e.g. add lipstick)", "Major Masked Changes (e.g. change hair color or nose size)", "Major Global Changes (e.g. change race / gender"])
                     iterations = gr.Slider(minimum=10,
                                             maximum=60,
                                             step=1,
