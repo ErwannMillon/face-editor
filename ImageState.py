@@ -41,8 +41,8 @@ class ImageState:
         self.transform_history = []
         self.attn_mask = None
         self.prompt_optim = prompt_optimizer
-        self.state_id = "./img_history"
-        print("NEW INSTANCE")
+        self.state_id = None
+        # print("NEW INSTANCE")
         print(self.state_id)
         self._load_vectors()
         self.init_transforms()
@@ -122,6 +122,9 @@ class ImageState:
     def _render_all_transformations(self, return_twice=True):
         global num
         # global vqgan
+        if self.state_id is None:
+            self.state_id = str(uuid.uuid4())
+            print("redner all", self.state_id)
         current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
         new_latent = self.blend_latent + sum(current_vector_transforms)
         if self.quant:
@@ -159,7 +162,8 @@ class ImageState:
         if path1 is None: path1 = path2
         if path2 is None: path2 = path1
         self.path1, self.path2 = path1, path2
-        clear_img_dir(self.state_id)
+        if self.state_id:
+            clear_img_dir(self.state_id)
         return self.blend(blend_weight)
     @torch.no_grad()
     def blend(self, weight):
@@ -182,6 +186,8 @@ class ImageState:
     #     rep[mask >= 0.03] = 1
     #     return rep
     def apply_prompts(self, positive_prompts, negative_prompts, lr, iterations, lpips_weight, reconstruction_steps):
+        if self.state_id is None:
+            self.state_id = "./" + str(uuid.uuid4())
         transform_log = PromptTransformHistory(iterations + reconstruction_steps)
         transform_log.transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))
         self.current_prompt_transforms.append(torch.zeros_like(self.blend_latent, requires_grad=False))

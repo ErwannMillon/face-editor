@@ -8,6 +8,9 @@ import torch
 from configs import set_major_global, set_major_local, set_preset, set_small_local
 import uuid 
 # print()'
+import torch
+import torchvision.models as models
+from torch.profiler import profile, record_function, ProfilerActivity
 sys.path.append("taming-transformers")
 
 import gradio as gr
@@ -71,7 +74,7 @@ class StateWrapper:
     def update_requant(state, *args, **kwargs):
         return state, *state[0].update_requant(*args, **kwargs)
 with gr.Blocks(css="styles.css") as demo:
-    id = gr.State(str(uuid.uuid4()))
+    # id = gr.State(str(uuid.uuid4()))
     state = gr.State([ImageState(vqgan, promptoptim), str(uuid.uuid4())])
     with gr.Row():
         with gr.Column(scale=1):
