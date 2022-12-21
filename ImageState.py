@@ -125,6 +125,7 @@ class ImageState:
         image = self._decode_latent_to_pil(new_latent)
         img_dir = self.state_id
         if not os.path.exists(img_dir):
+            os.mkdir("./img_history")
             os.mkdir(img_dir)
         image.save(f"{img_dir}/img_{num:06}.png")
         num += 1
