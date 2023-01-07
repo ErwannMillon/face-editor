@@ -1,5 +1,4 @@
 import importlib
-
 import numpy as np
 import taming
 import torch
@@ -7,9 +6,8 @@ import yaml
 from omegaconf import OmegaConf
 from PIL import Image
 from taming.models.vqgan import VQModel
-
 from utils import get_device
-# import discriminator
+
 
 def load_config(config_path, display=False):
   config = OmegaConf.load(config_path)
@@ -17,37 +15,23 @@ def load_config(config_path, display=False):
     print(yaml.dump(OmegaConf.to_container(config)))
   return config
 
-# def load_disc(device):
-#     dconf = load_config("disc_config.yaml")
-#     sd = torch.load("disc.pt", map_location=device)
-#     # print(sd.keys())
-#     model = discriminator.NLayerDiscriminator()
-#     model.load_state_dict(sd, strict=True)
-#     model.to(device)
-#     return model
-    # print(dconf.keys())
-
 def load_default(device):
-    # device = get_device()
     ckpt_path = "logs/2021-04-23T18-11-19_celebahq_transformer/checkpoints/last.ckpt"
     conf_path = "./unwrapped.yaml"
     config = load_config(conf_path, display=False)
     model = taming.models.vqgan.VQModel(**config.model.params)
-    sd = torch.load("./vqgan_only.pt", map_location=device)
+    sd = torch.load("./model_checkpoints/vqgan_only.pt", map_location=device)
     model.load_state_dict(sd, strict=True)
     model.to(device)
     return model
 
 
 def load_vqgan(config, ckpt_path=None, is_gumbel=False):
-  if is_gumbel:
-    model = GumbelVQ(**config.model.params)
-  else:
     model = VQModel(**config.model.params)
-  if ckpt_path is not None:
-    sd = torch.load(ckpt_path, map_location="cpu")["state_dict"]
-    missing, unexpected = model.load_state_dict(sd, strict=False)
-  return model.eval()
+    if ckpt_path is not None:
+        sd = torch.load(ckpt_path, map_location="cpu")["state_dict"]
+        missing, unexpected = model.load_state_dict(sd, strict=False)
+    return model.eval()
 
 def load_ffhq():
     conf = "2020-11-09T13-33-36_faceshq_vqgan/configs/2020-11-09T13-33-36-project.yaml"

@@ -63,24 +63,15 @@ class ImageState:
     def _decode_latent_to_pil(self, latent):
         current_im = self.vqgan.decode(latent.to(self.device))[0]
         return custom_to_pil(current_im)
-    # def _get_current_vector_transforms(self):
-    #     current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
-    #     return (self.blend_latent, current_vector_transforms)
-    # @cache
     def get_mask(self, img, mask=None):
         if img and "mask" in img and img["mask"] is not None:
             attn_mask = torchvision.transforms.ToTensor()(img["mask"])
             attn_mask = torch.ceil(attn_mask[0].to(self.device))
-            plt.imshow(attn_mask.detach().cpu(), cmap="Blues")
-            plt.show()
-            torch.save(attn_mask, "test_mask.pt")
             print("mask set successfully")
-            # attn_mask = self.rescale_mask(attn_mask)
             print(type(attn_mask))
             print(attn_mask.shape)
         else:
             attn_mask = mask
-            print("mask in apply ", get_resized_tensor(attn_mask), get_resized_tensor(attn_mask).shape)
         return attn_mask
     def set_mask(self, img):
         attn_mask = self.get_mask(img)

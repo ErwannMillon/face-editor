@@ -4,7 +4,7 @@ import sys
 
 import wandb
 
-from configs import set_major_global, set_major_local, set_small_local
+from presets import set_major_global, set_major_local, set_small_local
 
 sys.path.append("taming-transformers")
 import functools

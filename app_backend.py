@@ -81,7 +81,7 @@ class ImagePromptOptimizer(nn.Module):
         self.make_grid = make_grid
         self.return_val = return_val
         self.quantize = quantize
-        self.disc = load_disc(self.device)
+        # self.disc = load_disc(self.device)
         self.lpips_weight = lpips_weight
         self.perceptual_loss = lpips.LPIPS(net='vgg').to(self.device)
     def disc_loss_fn(self, logits):
@@ -89,7 +89,7 @@ class ImagePromptOptimizer(nn.Module):
     def set_latent(self, latent):
         self.latent = latent.detach().to(self.device)
     def set_params(self, lr, iterations, lpips_weight, reconstruction_steps, attn_mask):
-        self.attn_mask = attn_mask
+        self._attn_mask = attn_mask
         self.iterations = iterations
         self.lr = lr
         self.lpips_weight = lpips_weight
@@ -131,32 +131,29 @@ class ImagePromptOptimizer(nn.Module):
         else:
             plt.imshow(get_pil(processed_img[0]).detach().cpu())
             plt.show()
-    def attn_masking(self, grad):
-        # print("attnmask 1")
-        # print(f"input grad.shape = {grad.shape}")
-        # print(f"input grad = {get_resized_tensor(grad)}")
+    def _attn_mask(self, grad):
         newgrad = grad
-        if self.attn_mask is not None:
-            # print("masking mult")
-            newgrad = grad * (self.attn_mask)
-        # print("output grad, ", get_resized_tensor(newgrad))
-        # print("end atn 1")
+        if self._attn_mask is not None:
+            newgrad = grad * (self._attn_mask)
         return newgrad
-    def attn_masking2(self, grad):
-        # print("attnmask 2")
-        # print(f"input grad.shape = {grad.shape}")
-        # print(f"input grad = {get_resized_tensor(grad)}")
+    def _attn_mask_inverse(self, grad):
         newgrad = grad
-        if self.attn_mask is not None:
-            # print("masking mult")
-            newgrad = grad * ((self.attn_mask - 1) * -1)
-        # print("output grad, ", get_resized_tensor(newgrad))
-        # print("end atn 2")
+        if self._attn_mask is not None:
+            newgrad = grad * ((self._attn_mask - 1) * -1)
         return newgrad
+    def _get_next_inputs(self, transformed_img):
+        processed_img = loop_post_process(transformed_img) #* self.attn_mask
+        processed_img.retain_grad()
+        lpips_input = processed_img.clone()
+        lpips_input.register_hook(self._attn_mask_inverse)
+        lpips_input.retain_grad()
+        clip_input = processed_img.clone()
+        clip_input.register_hook(self._attn_mask)
+        clip_input.retain_grad()
+        return processed_img, lpips_input, clip_input
 
     def optimize(self, latent, pos_prompts, neg_prompts):
         self.set_latent(latent)
-        # self.make_grid=True
         transformed_img = self(torch.zeros_like(self.latent, requires_grad=True, device=self.device))
         original_img = loop_post_process(transformed_img)
         vector = torch.randn_like(self.latent, requires_grad=True, device=self.device)
@@ -167,27 +164,14 @@ class ImagePromptOptimizer(nn.Module):
         for i in tqdm(range(self.iterations)):
             optim.zero_grad()
             transformed_img = self(vector)
-            processed_img = loop_post_process(transformed_img) #* self.attn_mask
-            processed_img.retain_grad()
-            lpips_input = processed_img.clone()
-            lpips_input.register_hook(self.attn_masking2)
-            lpips_input.retain_grad()
-            clip_clone = processed_img.clone()
-            clip_clone.register_hook(self.attn_masking)
-            clip_clone.retain_grad()
+            processed_img, lpips_input, clip_input = self._get_next_inputs(transformed_img)
             with torch.autocast("cuda"):
-                clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_clone)
+                clip_loss = self.get_similarity_loss(pos_prompts, neg_prompts, clip_input)
                 print("CLIP loss", clip_loss)
                 perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
                 print("LPIPS loss: ", perceptual_loss)
-                with torch.no_grad():
-                    disc_logits = self.disc(transformed_img)
-                    disc_loss = self.disc_loss_fn(disc_logits)
-                    print(f"disc_loss = {disc_loss}")
-                    disc_loss2 = self.disc(processed_img)
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
-                wandb.log({"Discriminator Loss": disc_loss})
                 wandb.log({"CLIP Loss": clip_loss})
             clip_loss.backward(retain_graph=True)
             perceptual_loss.backward(retain_graph=True)
@@ -207,7 +191,7 @@ class ImagePromptOptimizer(nn.Module):
             processed_img = loop_post_process(transformed_img) #* self.attn_mask
             processed_img.retain_grad()
             lpips_input = processed_img.clone()
-            lpips_input.register_hook(self.attn_masking2)
+            lpips_input.register_hook(self._attn_mask_inverse)
             lpips_input.retain_grad()
             with torch.autocast("cuda"):
                 perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
@@ -216,28 +200,10 @@ class ImagePromptOptimizer(nn.Module):
                     disc_loss = self.disc_loss_fn(disc_logits)
                     print(f"disc_loss = {disc_loss}")
                     disc_loss2 = self.disc(processed_img)
-            # print(f"disc_loss2 = {disc_loss2}")
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
             print("LPIPS loss: ", perceptual_loss)
             perceptual_loss.backward(retain_graph=True)
             optim.step()
             yield vector
-        # torch.save(vector, "nose_vector.pt")
-        # print("")
-        # print("DISC STEPS")
-        # print("*************")
-        # for i in range(self.reconstruction_steps):
-        #     optim.zero_grad()
-        #     transformed_img = self(vector)
-        #     processed_img = loop_post_process(transformed_img) #* self.attn_mask
-        #     disc_logits = self.disc(transformed_img)
-        #     disc_loss = self.disc_loss_fn(disc_logits)
-        #     print(f"disc_loss = {disc_loss}")
-        #     if log:
-        #         wandb.log({"Disc Loss": disc_loss})
-        #     print("LPIPS loss: ", perceptual_loss)
-        #     disc_loss.backward(retain_graph=True)
-        #     optim.step()
-        #     yield vector
         yield vector if self.return_val == "vector" else self.latent + vector

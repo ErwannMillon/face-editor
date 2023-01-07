@@ -8,7 +8,6 @@ def clear_img_dir():
         os.mkdir(img_dir)
     for filename in glob.glob(img_dir+"/*"):
         os.remove(filename)
-    
 
 def create_gif(total_duration, extend_frames, folder="./img_history", gif_name="face_edit.gif"):
     images = []
@@ -23,12 +22,8 @@ def create_gif(total_duration, extend_frames, folder="./img_history", gif_name="
         if file_name.endswith('.png'):
             file_path = os.path.join(folder, file_name)
             images.append(imageio.imread(file_path))
-    # images[0] = images[0].set_meta_data({'duration': 1})
-    # images[-1] = images[-1].set_meta_data({'duration': 1})
     imageio.mimsave(gif_name, images, duration=durations)
     return gif_name
 
 if __name__ == "__main__":
-    # clear_img_dir()
     create_gif()
-# make_animation()

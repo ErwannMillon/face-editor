@@ -32,7 +32,7 @@ def preprocess(img, target_image_size=256, map_dalle=False):
     return img
 
 def preprocess_vqgan(x):
-  x = 2.*x - 1.
+  x = 2. * x - 1.
   return x
 
 def custom_to_pil(x, process=True, mode="RGB"):
