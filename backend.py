@@ -17,7 +17,9 @@ from img_processing import *
 from img_processing import custom_to_pil
 from loaders import load_default
 import glob
-# global log
+import gc
+
+global log
 log=False
 
 # ic.disable()
@@ -61,6 +63,7 @@ class ImagePromptOptimizer(nn.Module):
                 vqgan, 
                 clip,
                 clip_preprocessor,
+                lpips_fn,
                 iterations=100,
                 lr = 0.01,
                 save_vector=True,
@@ -81,11 +84,8 @@ class ImagePromptOptimizer(nn.Module):
         self.make_grid = make_grid
         self.return_val = return_val
         self.quantize = quantize
-        # self.disc = load_disc(self.device)
         self.lpips_weight = lpips_weight
-        self.perceptual_loss = lpips.LPIPS(net='vgg').to(self.device)
-    def disc_loss_fn(self, logits):
-        return -torch.mean(logits)
+        self.perceptual_loss = lpips_fn
     def set_latent(self, latent):
         self.latent = latent.detach().to(self.device)
     def set_params(self, lr, iterations, lpips_weight, reconstruction_steps, attn_mask):
@@ -195,11 +195,6 @@ class ImagePromptOptimizer(nn.Module):
             lpips_input.retain_grad()
             with torch.autocast("cuda"):
                 perceptual_loss = self.perceptual_loss(lpips_input, original_img.clone()) * self.lpips_weight
-                with torch.no_grad():
-                    disc_logits = self.disc(transformed_img)
-                    disc_loss = self.disc_loss_fn(disc_logits)
-                    print(f"disc_loss = {disc_loss}")
-                    disc_loss2 = self.disc(processed_img)
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
             print("LPIPS loss: ", perceptual_loss)
