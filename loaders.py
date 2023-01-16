@@ -10,17 +10,17 @@ from utils import get_device
 
 
 def load_config(config_path, display=False):
-  config = OmegaConf.load(config_path)
-  if display:
-    print(yaml.dump(OmegaConf.to_container(config)))
-  return config
+    config = OmegaConf.load(config_path)
+    if display:
+        print(yaml.dump(OmegaConf.to_container(config)))
+    return config
+
 
 def load_default(device):
-    ckpt_path = "logs/2021-04-23T18-11-19_celebahq_transformer/checkpoints/last.ckpt"
-    conf_path = "./unwrapped.yaml"
+    conf_path = "./celeba_vqgan/unwrapped.yaml"
     config = load_config(conf_path, display=False)
     model = taming.models.vqgan.VQModel(**config.model.params)
-    sd = torch.load("./model_checkpoints/vqgan_only.pt", map_location=device)
+    sd = torch.load("./celeba_vqgan/vqgan_only.pt", map_location=device)
     model.load_state_dict(sd, strict=True)
     model.to(device)
     del sd
@@ -34,17 +34,14 @@ def load_vqgan(config, ckpt_path=None, is_gumbel=False):
         missing, unexpected = model.load_state_dict(sd, strict=False)
     return model.eval()
 
-def load_ffhq():
-    conf = "2020-11-09T13-33-36_faceshq_vqgan/configs/2020-11-09T13-33-36-project.yaml"
-    ckpt = "2020-11-09T13-33-36_faceshq_vqgan/checkpoints/last.ckpt"
-    vqgan = load_model(load_config(conf), ckpt, True, True)[0]
 
 def reconstruct_with_vqgan(x, model):
-  # could also use model(x) for reconstruction but use explicit encoding and decoding here
-  z, _, [_, _, indices] = model.encode(x)
-  print(f"VQGAN --- {model.__class__.__name__}: latent shape: {z.shape[2:]}")
-  xrec = model.decode(z)
-  return xrec
+    z, _, [_, _, indices] = model.encode(x)
+    print(f"VQGAN --- {model.__class__.__name__}: latent shape: {z.shape[2:]}")
+    xrec = model.decode(z)
+    return xrec
+
+
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
     if reload:
@@ -52,11 +49,12 @@ def get_obj_from_str(string, reload=False):
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
 
-def instantiate_from_config(config):
 
-    if not "target" in config:
+def instantiate_from_config(config):
+    if "target" not in config:
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
+
 
 def load_model_from_config(config, sd, gpu=True, eval_mode=True):
     model = instantiate_from_config(config)
@@ -78,5 +76,7 @@ def load_model(config, ckpt, gpu, eval_mode):
     else:
         pl_sd = {"state_dict": None}
         global_step = None
-    model = load_model_from_config(config.model, pl_sd["state_dict"], gpu=gpu, eval_mode=eval_mode)["model"]
+    model = load_model_from_config(
+        config.model, pl_sd["state_dict"], gpu=gpu, eval_mode=eval_mode
+    )["model"]
     return model, global_step

@@ -12,7 +12,7 @@ import PIL
 import taming
 import torch
 
-from loaders import load_config
+from loaders import load_config, load_default
 from utils import get_device
 
 
@@ -25,11 +25,14 @@ def get_embedding(model, path=None, img=None, device="cpu"):
     z, _, [_, _, indices] = model.encode(x_processed)
     return z
 
-    
-def blend_paths(model, path1, path2, quantize=False, weight=0.5, show=True, device="cuda"):
+
+def blend_paths(
+    model, path1, path2, quantize=False, weight=0.5, show=True, device="cuda"
+):
     x = preprocess(PIL.Image.open(path1), target_image_size=256).to(device)
     y = preprocess(PIL.Image.open(path2), target_image_size=256).to(device)
-    x_latent, y_latent = get_embedding(model, path=path1, device=device), get_embedding(model, path=path2, device=device)
+    x_latent = get_embedding(model, path=path1, device=device)
+    y_latent = get_embedding(model, path=path2, device=device)
     z = torch.lerp(x_latent, y_latent, weight)
     if quantize:
         z = model.quantize(z)[0]
@@ -45,14 +48,16 @@ def blend_paths(model, path1, path2, quantize=False, weight=0.5, show=True, devi
         plt.show()
     return custom_to_pil(decoded), z
 
+
 if __name__ == "__main__":
     device = get_device()
-    ckpt_path = "logs/2021-04-23T18-11-19_celebahq_transformer/checkpoints/last.ckpt"
-    conf_path = "./unwrapped.yaml"
-    config = load_config(conf_path, display=False)
-    model = taming.models.vqgan.VQModel(**config.model.params)
-    sd = torch.load("./vqgan_only.pt", map_location="mps")
-    model.load_state_dict(sd, strict=True)
+    model = load_default(device)
     model.to(device)
-    blend_paths(model, "./test_data/face.jpeg", "./test_data/face2.jpeg", quantize=False, weight=.5)
+    blend_paths(
+        model,
+        "./test_data/face.jpeg",
+        "./test_data/face2.jpeg",
+        quantize=False,
+        weight=0.5,
+    )
     plt.show()
