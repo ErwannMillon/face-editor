@@ -5,7 +5,7 @@ import sys
 import wandb
 import torch
 
-from presets import set_major_global, set_major_local, set_small_local
+from presets import set_preset 
 
 sys.path.append("taming-transformers")
 
@@ -36,7 +36,7 @@ def set_img_from_example(state, img):
 def get_cleared_mask():
     return gr.Image.update(value=None)
 class StateWrapper:
-    """This extremely ugly code is a hacky fix to allow con"""
+    """This extremely ugly code is a hacky fix to allow concurrent users on HF Spaces without instantiating new models for each user."""
     def create_gif(state, *args, **kwargs):
         return state, state[0].create_gif(*args, **kwargs)
     def apply_asian_vector(state, *args, **kwargs):
@@ -191,15 +191,11 @@ with gr.Blocks(css="styles.css") as demo:
     clear.click(StateWrapper.clear_transforms, inputs=[state], outputs=[state, out, mask])
     asian_weight.change(StateWrapper.apply_asian_vector, inputs=[state, asian_weight], outputs=[state, out, mask])
     lip_size.change(StateWrapper.apply_lip_vector, inputs=[state, lip_size], outputs=[state, out, mask])
-    # hair_green_purple.change(StateWrapper.apply_gp_vector, inputs=[state, hair_green_purple], outputs=[state, out, mask])
     blue_eyes.change(StateWrapper.apply_rb_vector, inputs=[state, blue_eyes], outputs=[state, out, mask])
     blend_weight.change(StateWrapper.blend, inputs=[state, blend_weight], outputs=[state, out, mask])
     # requantize.change(StateWrapper.update_requant, inputs=[state, requantize], outputs=[state, out, mask])
     base_img.change(StateWrapper.update_images, inputs=[state, base_img, blend_img, blend_weight], outputs=[state, out, mask])
     blend_img.change(StateWrapper.update_images, inputs=[state, base_img, blend_img, blend_weight], outputs=[state, out, mask])
-    # small_local.click(set_small_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
-    # major_local.click(set_major_local, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
-    # major_global.click(set_major_global, outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
     apply_prompts.click(StateWrapper.apply_prompts, inputs=[state, positive_prompts, negative_prompts, learning_rate, iterations, lpips_weight, reconstruction_steps], outputs=[state, out, mask])
     rewind.change(StateWrapper.rewind, inputs=[state, rewind], outputs=[state, out, mask])
     set_mask.click(StateWrapper.set_mask, inputs=[state, mask], outputs=[state, testim])
