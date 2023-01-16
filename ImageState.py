@@ -102,7 +102,7 @@ class ImageState:
         x = Image.fromarray(x, "L")
         return x
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def _render_all_transformations(self, return_twice=True):
         global num
         current_vector_transforms = (
@@ -150,7 +150,7 @@ class ImageState:
             clear_img_dir(self.img_dir)
         return self.blend(blend_weight)
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def blend(self, weight):
         _, latent = blend_paths(
             self.vqgan,
@@ -163,7 +163,7 @@ class ImageState:
         self.blend_latent = latent
         return self._render_all_transformations()
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def rewind(self, index):
         if not self.transform_history:
             print("No history")
@@ -221,7 +221,7 @@ class ImageState:
         ):
             transform_log.transforms.append(transform.detach().cpu())
             self.current_prompt_transforms[-1] = transform
-            with torch.inference_mode():
+            with torch.no_grad():
                 image = self._render_all_transformations(return_twice=False)
             if log:
                 wandb.log({"image": wandb.Image(image)})

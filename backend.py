@@ -140,7 +140,7 @@ class ImagePromptEditor(nn.Module):
         return newgrad
 
     def _get_next_inputs(self, transformed_img):
-        processed_img = loop_post_process(transformed_img)  # * self.attn_mask
+        processed_img = loop_post_process(transformed_img)
         processed_img.retain_grad()
 
         lpips_input = processed_img.clone()
@@ -154,51 +154,53 @@ class ImagePromptEditor(nn.Module):
         return (processed_img, lpips_input, clip_input)
 
     def _optimize_CLIP_LPIPS(self, optim, original_img, vector, pos_prompts, neg_prompts):
-        optim.zero_grad()
-        transformed_img = self(vector)
-        processed_img, lpips_input, clip_input = self._get_next_inputs(
-            transformed_img
-        )
-        with torch.autocast("cuda"):
-            clip_loss = self._get_CLIP_loss(pos_prompts, neg_prompts, clip_input)
-            print("CLIP loss", clip_loss)
-            perceptual_loss = (
-                self.perceptual_loss(lpips_input, original_img.clone())
-                * self.lpips_weight
+        for i in (range(self.iterations)):
+            optim.zero_grad()
+            transformed_img = self(vector)
+            processed_img, lpips_input, clip_input = self._get_next_inputs(
+                transformed_img
             )
-            print("LPIPS loss: ", perceptual_loss)
-            print("Sum Loss", perceptual_loss + clip_loss)
-        if log:
-            wandb.log({"Perceptual Loss": perceptual_loss})
-            wandb.log({"CLIP Loss": clip_loss})
-        
-        # These gradients will be masked if attn_mask has been set
-        clip_loss.backward(retain_graph=True)
-        perceptual_loss.backward(retain_graph=True)
+            with torch.autocast("cuda"):
+                clip_loss = self._get_CLIP_loss(pos_prompts, neg_prompts, clip_input)
+                print("CLIP loss", clip_loss)
+                perceptual_loss = (
+                    self.perceptual_loss(lpips_input, original_img.clone())
+                    * self.lpips_weight
+                )
+                print("LPIPS loss: ", perceptual_loss)
+                print("Sum Loss", perceptual_loss + clip_loss)
+            if log:
+                wandb.log({"Perceptual Loss": perceptual_loss})
+                wandb.log({"CLIP Loss": clip_loss})
+            
+            # These gradients will be masked if attn_mask has been set
+            clip_loss.backward(retain_graph=True)
+            perceptual_loss.backward(retain_graph=True)
 
-        optim.step()
-        yield vector
+            optim.step()
+            yield vector
 
     def _optimize_LPIPS(self, vector, original_img, optim):
-        optim.zero_grad()
-        transformed_img = self(vector)
-        processed_img = loop_post_process(transformed_img)  # * self.attn_mask
-        processed_img.retain_grad()
+        for i in range(self.reconstruction_steps):
+            optim.zero_grad()
+            transformed_img = self(vector)
+            processed_img = loop_post_process(transformed_img)
+            processed_img.retain_grad()
 
-        lpips_input = processed_img.clone()
-        lpips_input.register_hook(self._attn_mask_inverse)
-        lpips_input.retain_grad()
-        with torch.autocast("cuda"):
-            perceptual_loss = (
-                self.perceptual_loss(lpips_input, original_img.clone())
-                * self.lpips_weight
-            )
-        if log:
-            wandb.log({"Perceptual Loss": perceptual_loss})
-        print("LPIPS loss: ", perceptual_loss)
-        perceptual_loss.backward(retain_graph=True)
-        optim.step()
-        yield vector
+            lpips_input = processed_img.clone()
+            lpips_input.register_hook(self._attn_mask_inverse)
+            lpips_input.retain_grad()
+            with torch.autocast("cuda"):
+                perceptual_loss = (
+                    self.perceptual_loss(lpips_input, original_img.clone())
+                    * self.lpips_weight
+                )
+            if log:
+                wandb.log({"Perceptual Loss": perceptual_loss})
+            print("LPIPS loss: ", perceptual_loss)
+            perceptual_loss.backward(retain_graph=True)
+            optim.step()
+            yield vector
 
     def optimize(self, latent, pos_prompts, neg_prompts):
         self.set_latent(latent)
@@ -209,10 +211,10 @@ class ImagePromptEditor(nn.Module):
         vector = torch.randn_like(self.latent, requires_grad=True, device=self.device)
         optim = torch.optim.Adam([vector], lr=self.lr)
 
-        for i in tqdm(range(self.iterations)):
-            yield self._optimize_CLIP_LPIPS(optim, original_img, vector, pos_prompts, neg_prompts)
+        for transform in self._optimize_CLIP_LPIPS(optim, original_img, vector, pos_prompts, neg_prompts):
+            yield transform
 
         print("Running LPIPS optim only")
-        for i in range(self.reconstruction_steps):
-            yield self._optimize_LPIPS(vector, original_img, transformed_img, optim)
+        for transform in self._optimize_LPIPS(vector, original_img, optim):
+            yield transform
         yield vector if self.return_val == "vector" else self.latent + vector
