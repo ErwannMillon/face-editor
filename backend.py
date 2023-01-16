@@ -33,7 +33,7 @@ def get_resized_tensor(x):
 class ProcessorGradientFlow():
     """
     This wraps the huggingface CLIP processor to allow backprop through the image processing step.
-    The original processor forces conversion to PIL images, which breaks gradient flow. 
+    The original processor forces conversion to numpy then PIL images, which is faster for image processing but breaks gradient flow. 
     """
     def __init__(self, device="cuda") -> None:
         self.device = device

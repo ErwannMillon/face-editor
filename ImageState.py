@@ -31,7 +31,6 @@ class PromptTransformHistory():
 
 class ImageState:
     def __init__(self, vqgan, prompt_optimizer: ImagePromptOptimizer) -> None:
-        # global vqgan
         self.vqgan = vqgan
         self.device = vqgan.device
         self.blend_latent = None
@@ -41,14 +40,11 @@ class ImageState:
         self.transform_history = []
         self.attn_mask = None
         self.prompt_optim = prompt_optimizer
-        self.state_id = None
-        print(self.state_id)
         self._load_vectors()
         self.init_transforms()
     def _load_vectors(self):
         self.lip_vector = torch.load("./latent_vectors/lipvector.pt", map_location=self.device)
-        self.red_blue_vector = torch.load("./latent_vectors/2blue_eyes.pt", map_location=self.device)
-        self.green_purple_vector = torch.load("./latent_vectors/nose_vector.pt", map_location=self.device)
+        self.blue_eyes_vector = torch.load("./latent_vectors/2blue_eyes.pt", map_location=self.device)
         self.asian_vector = torch.load("./latent_vectors/asian10.pt", map_location=self.device)
     def create_gif(self, total_duration, extend_frames, gif_name="face_edit.gif"):
         images = []
@@ -71,7 +67,6 @@ class ImageState:
         self.lip_size = torch.zeros_like(self.lip_vector)
         self.asian_transform = torch.zeros_like(self.lip_vector)
         self.current_prompt_transforms = [torch.zeros_like(self.lip_vector)]
-        self.hair_gp = torch.zeros_like(self.lip_vector)
     def clear_transforms(self):
         global num
         self.init_transforms()
@@ -95,25 +90,22 @@ class ImageState:
             attn_mask = mask
         return attn_mask
     def set_mask(self, img):
-        attn_mask = self._get_mask(img)
-        self.attn_mask = attn_mask
-            # attn_mask = torch.ones_like(img, device=self.device)
-        x = attn_mask.clone()
+        self.attn_mask = self._get_mask(img)
+        x = self.attn_mask.clone()
         x = x.detach().cpu()
         x = torch.clamp(x, -1., 1.)
         x = (x + 1.)/2.
         x = x.numpy()
-        x = (255*x).astype(np.uint8)
+        x = (255 * x).astype(np.uint8)
         x = Image.fromarray(x, "L")
         return x
     @torch.no_grad()
     def _render_all_transformations(self, return_twice=True):
         global num
-        # global vqgan
         if self.state_id is None:
             self.state_id = "./img_history/" + str(uuid.uuid4())
             print("redner all", self.state_id)
-        current_vector_transforms = (self.blue_eyes, self.lip_size, self.hair_gp, self.asian_transform, sum(self.current_prompt_transforms))
+        current_vector_transforms = (self.blue_eyes, self.lip_size, self.asian_transform, sum(self.current_prompt_transforms))
         new_latent = self.blend_latent + sum(current_vector_transforms)
         if self.quant:
             new_latent, _, _ = self.vqgan.quantize(new_latent.to(self.device))
@@ -126,17 +118,13 @@ class ImageState:
         image.save(f"{img_dir}/img_{num:06}.png")
         num += 1
         return (image, image) if return_twice else image
-    def apply_gp_vector(self, weight):
-        self.hair_gp = weight * self.green_purple_vector
-        return self._render_all_transformations()
     def apply_rb_vector(self, weight):
-        self.blue_eyes = weight * self.red_blue_vector
+        self.blue_eyes = weight * self.blue_eyes_vector
         return self._render_all_transformations()
     def apply_lip_vector(self, weight):
         self.lip_size = weight * self.lip_vector
         return self._render_all_transformations()
-    def update_requant(self, val):
-        print(f"val = {val}")
+    def update_quant(self, val):
         self.quant = val
         return self._render_all_transformations()
     def apply_asian_vector(self, weight):
@@ -144,11 +132,7 @@ class ImageState:
         return self._render_all_transformations()
     def update_images(self, path1, path2, blend_weight):
         if path1 is None and path2 is None:
-            print("no paths")
             return None
-        if path1 == path2:
-            print("paths are the same")
-            print(path1)
         if path1 is None: path1 = path2
         if path2 is None: path2 = path1
         self.path1, self.path2 = path1, path2
@@ -204,8 +188,3 @@ class ImageState:
         self.transform_history.append(transform_log)
         gc.collect()
         torch.cuda.empty_cache()
-        # transform = self.prompt_optim.optimize(self.blend_latent,
-                                                # positive_prompts,
-                                                # negative_prompts)
-        # self.prompt_transforms = transform
-        # return self._render_all_transformations()

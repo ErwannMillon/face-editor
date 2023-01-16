@@ -100,7 +100,6 @@ with gr.Blocks(css="styles.css") as demo:
                                 label="Rewind back through a prompt transform: Use this to scroll through the iterations of your prompt transformation.",
                                 minimum=0,
                                 maximum=100)
-
             apply_prompts = gr.Button(variant="primary", value="🎨 Apply Prompts", elem_id="apply")
             clear = gr.Button(value="❌ Clear all transformations (irreversible)", elem_id="warning")
             blue_eyes = gr.Slider(
@@ -110,13 +109,6 @@ with gr.Blocks(css="styles.css") as demo:
                 value=0,
                 step=0.1,
             )
-            # hair_green_purple = gr.Slider(
-            #     label="hair green<->purple ",
-            #     minimum=-.8,
-            #     maximum=.8,
-            #     value=0,
-            #     step=0.1,
-            # )
             lip_size = gr.Slider(
                 label="Lip Size",
                 minimum=-1.9,
@@ -131,10 +123,6 @@ with gr.Blocks(css="styles.css") as demo:
                 maximum=1.,
                 step=0.1,
             )
-            # requantize = gr.Checkbox(
-            #     label="Requantize Latents (necessary using text prompts)",
-            #     value=True,
-            # )
             asian_weight = gr.Slider(
                 minimum=-2.,
                 value=0,
