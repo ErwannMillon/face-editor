@@ -16,3 +16,4 @@ latent_vectors/asian10.pt filter=lfs diff=lfs merge=lfs -text
 latent_vectors/gender.pt filter=lfs diff=lfs merge=lfs -text
 latent_vectors/green_purple.pt filter=lfs diff=lfs merge=lfs -text
 latent_vectors/lipvector.pt filter=lfs diff=lfs merge=lfs -text
+model_checkpoints filter=lfs diff=lfs merge=lfs -text
