@@ -17,10 +17,10 @@ def load_config(config_path, display=False):
 
 
 def load_default(device):
-    conf_path = "./celeba_vqgan/vqgan_only.yaml"
+    conf_path = "./model_checkpoints/vqgan_only.yaml"
     config = load_config(conf_path, display=False)
     model = taming.models.vqgan.VQModel(**config.model.params)
-    sd = torch.load("./celeba_vqgan/vqgan_only.pt", map_location=device)
+    sd = torch.load("./model_checkpoints/vqgan_only.pt", map_location=device)
     model.load_state_dict(sd, strict=True)
     model.to(device)
     del sd
