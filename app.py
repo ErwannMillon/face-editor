@@ -14,7 +14,7 @@ from transformers import CLIPModel, CLIPProcessor
 from lpips import LPIPS
 
 import edit
-from backend import ImagePromptOptimizer, ProcessorGradientFlow
+from backend import ImagePromptEditor, ProcessorGradientFlow
 from ImageState import ImageState
 from loaders import load_default
 # from animation import create_gif
@@ -29,14 +29,14 @@ processor = ProcessorGradientFlow(device=device)
 # clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 lpips_fn = LPIPS(net='vgg').to(device)
 clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
-promptoptim = ImagePromptOptimizer(vqgan, clip, processor, lpips_fn=lpips_fn, quantize=True)
+promptoptim = ImagePromptEditor(vqgan, clip, processor, lpips_fn=lpips_fn, quantize=True)
+
 def set_img_from_example(state, img):
     return state.update_images(img, img, 0)
 def get_cleared_mask():
     return gr.Image.update(value=None)
-    # mask.clear()
-
 class StateWrapper:
+    """This extremely ugly code is a hacky fix to allow con"""
     def create_gif(state, *args, **kwargs):
         return state, state[0].create_gif(*args, **kwargs)
     def apply_asian_vector(state, *args, **kwargs):
@@ -46,7 +46,6 @@ class StateWrapper:
     def apply_lip_vector(state, *args, **kwargs):
         return state, *state[0].apply_lip_vector(*args, **kwargs)
     def apply_prompts(state, *args, **kwargs):
-        print(state[1])
         for image in state[0].apply_prompts(*args, **kwargs):
             yield state, *image
     def apply_rb_vector(state, *args, **kwargs):
@@ -69,9 +68,10 @@ class StateWrapper:
         return state, *state[0].update_images(*args, **kwargs)
     def update_requant(state, *args, **kwargs):
         return state, *state[0].update_requant(*args, **kwargs)
+
+
 with gr.Blocks(css="styles.css") as demo:
-    # id = gr.State(str(uuid.uuid4()))
-    state = gr.State([ImageState(vqgan, promptoptim), str(uuid.uuid4())])
+    state = gr.State([ImageState(vqgan, promptoptim)])
     with gr.Row():
         with gr.Column(scale=1):
             with gr.Row():
