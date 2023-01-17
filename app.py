@@ -36,7 +36,11 @@ def set_img_from_example(state, img):
 def get_cleared_mask():
     return gr.Image.update(value=None)
 class StateWrapper:
-    """This extremely ugly code is a hacky fix to allow concurrent users on HF Spaces without instantiating new models for each user."""
+    """
+    This extremely ugly code is a hacky fix to allow concurrent users on HF Spaces,
+    without instantiating new models for each user, but allowing each user to have their
+    own image state and image history to create animations
+    ."""
     def create_gif(state, *args, **kwargs):
         return state, state[0].create_gif(*args, **kwargs)
     def apply_asian_vector(state, *args, **kwargs):
@@ -163,7 +167,6 @@ with gr.Blocks(css="styles.css") as demo:
                         - Example: Higher config values, like learning rate: 0.7, perceptual loss weight: 35 can be used to make major out-of-domain changes.
                         """)
                     with gr.Row():
-                        # with gr.Column():
                         presets = gr.Dropdown(value="Select a preset", label="Preset Configs", choices=["Small Masked Changes (e.g. add lipstick)", "Major Masked Changes (e.g. change hair color or nose size)", "Major Global Changes (e.g. change race / gender"])
                     iterations = gr.Slider(minimum=10,
                                             maximum=60,
@@ -195,4 +198,4 @@ with gr.Blocks(css="styles.css") as demo:
     set_mask.click(StateWrapper.set_mask, inputs=[state, mask], outputs=[state, testim])
     presets.change(set_preset, inputs=[presets], outputs=[iterations, learning_rate, lpips_weight, reconstruction_steps])
 demo.queue()
-demo.launch(debug=True, enable_queue=True)
+demo.launch(debug=True, enable_queue=True, share=True)
