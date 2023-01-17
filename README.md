@@ -2,6 +2,18 @@
 
 ## Examples
 
+To man                     |  To Blonde
+:-------------------------:|:-------------------------:
+![](https://github.com/ErwannMillon/face-editor/blob/main/animations/woman_to_man.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/blonde.gif)
+
+To Asian                   |  To African American
+:-------------------------:|:-------------------------:
+![](https://github.com/ErwannMillon/face-editor/blob/main/animations/to_sian.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/to_black.gif)
+
+Add Lipstick                   |  Thick Eyebrows
+:-------------------------:|:-------------------------:
+![](https://github.com/ErwannMillon/face-editor/blob/main/animations/add_lipstick.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/thick_eyebrows.gif)
+
 
 ## Overview
 This interactive GUI face editor uses a CelebA-pretrained VQGAN-CLIP for prompt-based image manipulation, as well as slider based manipulation using extracted latent vectors. I built this in a few days as part of the Ben's Bites December 22 Hackathon
