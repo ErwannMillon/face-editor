@@ -50,11 +50,9 @@ class ImageState:
             "./latent_vectors/asian10.pt", map_location=self.device
         )
 
-    def create_gif(
-        total_duration, extend_frames, folder="./img_history", gif_name="face_edit.gif"
-    ):
+    def create_gif(self, total_duration, extend_frames, gif_name="face_edit.gif"):
         images = []
-        paths = list(sorted(glob.glob(folder + "/*")))
+        paths = list(sorted(glob.glob(self.img_dir + "/*")))
         print(paths)
         frame_duration = total_duration / len(paths)
         print(len(paths), "frame dur", frame_duration)
