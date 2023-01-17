@@ -4,9 +4,9 @@
 
 
 ## Overview
-This interactive GUI face editor uses a CelebA-pretrained VQGAN-CLIP for prompt-based image manipulation, as well as slider based manipulation using extracted latent vectors. 
+This interactive GUI face editor uses a CelebA-pretrained VQGAN-CLIP for prompt-based image manipulation, as well as slider based manipulation using extracted latent vectors. I built this in a few days as part of the Ben's Bites December 22 Hackathon
 
-I've written a series of Medium articles which provide a detailed and beginner-friendly explanation of how this was built and the intuition behind latent image manipulation. 
+I've since written a series of Medium articles which provide a detailed and beginner-friendly explanation of how this was built and the intuition behind latent image manipulation. 
 
 [Coming Soon]
 
@@ -21,4 +21,6 @@ Clone the repo and run `app.py` or <a href="https://colab.research.google.com/dr
 - Rewinding through the history of edits, resuming edits from a previous point in the history
 - Creating GIF animations of the editing process 
 
-## Animations
+## Future work / ideas
+- Implementing an LRU cache to the render_all_transformations function. I first implemented a simple cache that refactored the function to take the transformations as arguments and cached the corresponding decoded transformed image to speed up rewinds through the prompt editing history, but this was very memory inefficient. An LRU cache could mitigate this, or even a cache that only caches the most recent prompt edit. Might add this later. 
+
