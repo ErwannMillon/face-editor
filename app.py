@@ -183,17 +183,11 @@ with gr.Blocks(css="styles.css") as demo:
                                             value=3,
                                             step=1,
                                             label="Steps to run at the end of the optimization, optimizing only the masked perceptual loss. If the edit is changing the identity too much, this setting will run steps at the end that 'pull' the image back towards the original identity")
-                    # discriminator_steps = gr.Slider(minimum=0,
-                    #                         maximum=50,
-                    #                         step=1,
-                    #                         value=0,
-                    #                         label="Steps to run at the end, optimizing only the discriminator loss. This helps to reduce artefacts, but because the model is trained on CelebA, this will make your generations look more like generic white celebrities")
     clear.click(StateWrapper.clear_transforms, inputs=[state], outputs=[state, out, mask])
     asian_weight.change(StateWrapper.apply_asian_vector, inputs=[state, asian_weight], outputs=[state, out, mask])
     lip_size.change(StateWrapper.apply_lip_vector, inputs=[state, lip_size], outputs=[state, out, mask])
     blue_eyes.change(StateWrapper.apply_rb_vector, inputs=[state, blue_eyes], outputs=[state, out, mask])
     blend_weight.change(StateWrapper.blend, inputs=[state, blend_weight], outputs=[state, out, mask])
-    # requantize.change(StateWrapper.update_requant, inputs=[state, requantize], outputs=[state, out, mask])
     base_img.change(StateWrapper.update_images, inputs=[state, base_img, blend_img, blend_weight], outputs=[state, out, mask])
     blend_img.change(StateWrapper.update_images, inputs=[state, base_img, blend_img, blend_weight], outputs=[state, out, mask])
     apply_prompts.click(StateWrapper.apply_prompts, inputs=[state, positive_prompts, negative_prompts, learning_rate, iterations, lpips_weight, reconstruction_steps], outputs=[state, out, mask])

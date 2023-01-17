@@ -2,6 +2,7 @@ import gradio as gr
 
 
 def set_preset(config_str):
+    print(config_str)
     choices = [
         "Small Masked Changes (e.g. add lipstick)",
         "Major Masked Changes (e.g. change hair color or nose size)",

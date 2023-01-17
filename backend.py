@@ -79,7 +79,7 @@ class ImagePromptEditor(nn.Module):
         self.latent = latent.detach().to(self.device)
 
     def set_params(self, lr, iterations, lpips_weight, reconstruction_steps, attn_mask):
-        self._attn_mask = attn_mask
+        self.attn_mask = attn_mask
         self.iterations = iterations
         self.lr = lr
         self.lpips_weight = lpips_weight
@@ -118,25 +118,16 @@ class ImagePromptEditor(nn.Module):
         loss = -torch.log(pos_logits) + torch.log(neg_logits)
         return loss
 
-    def visualize(self, processed_img):
-        if self.make_grid:
-            self.index += 1
-            plt.subplot(1, 13, self.index)
-            plt.imshow(get_pil(processed_img[0]).detach().cpu())
-        else:
-            plt.imshow(get_pil(processed_img[0]).detach().cpu())
-            plt.show()
-
-    def _attn_mask(self, grad):
+    def _apply_mask(self, grad):
         newgrad = grad
-        if self._attn_mask is not None:
-            newgrad = grad * (self._attn_mask)
+        if self.attn_mask is not None:
+            newgrad = grad * (self.attn_mask)
         return newgrad
 
-    def _attn_mask_inverse(self, grad):
+    def _apply_inverse_mask(self, grad):
         newgrad = grad
-        if self._attn_mask is not None:
-            newgrad = grad * ((self._attn_mask - 1) * -1)
+        if self.attn_mask is not None:
+            newgrad = grad * ((self.attn_mask - 1) * -1)
         return newgrad
 
     def _get_next_inputs(self, transformed_img):
@@ -144,11 +135,11 @@ class ImagePromptEditor(nn.Module):
         processed_img.retain_grad()
 
         lpips_input = processed_img.clone()
-        lpips_input.register_hook(self._attn_mask_inverse)
+        lpips_input.register_hook(self._apply_inverse_mask)
         lpips_input.retain_grad()
 
         clip_input = processed_img.clone()
-        clip_input.register_hook(self._attn_mask)
+        clip_input.register_hook(self._apply_mask)
         clip_input.retain_grad()
 
         return (processed_img, lpips_input, clip_input)
@@ -160,15 +151,15 @@ class ImagePromptEditor(nn.Module):
             processed_img, lpips_input, clip_input = self._get_next_inputs(
                 transformed_img
             )
-            with torch.autocast("cuda"):
-                clip_loss = self._get_CLIP_loss(pos_prompts, neg_prompts, clip_input)
-                print("CLIP loss", clip_loss)
-                perceptual_loss = (
-                    self.perceptual_loss(lpips_input, original_img.clone())
-                    * self.lpips_weight
-                )
-                print("LPIPS loss: ", perceptual_loss)
-                print("Sum Loss", perceptual_loss + clip_loss)
+            # with torch.autocast("cuda"):
+            clip_loss = self._get_CLIP_loss(pos_prompts, neg_prompts, clip_input)
+            print("CLIP loss", clip_loss)
+            perceptual_loss = (
+                self.perceptual_loss(lpips_input, original_img.clone())
+                * self.lpips_weight
+            )
+            print("LPIPS loss: ", perceptual_loss)
+            print("Sum Loss", perceptual_loss + clip_loss)
             if log:
                 wandb.log({"Perceptual Loss": perceptual_loss})
                 wandb.log({"CLIP Loss": clip_loss})
@@ -188,7 +179,7 @@ class ImagePromptEditor(nn.Module):
             processed_img.retain_grad()
 
             lpips_input = processed_img.clone()
-            lpips_input.register_hook(self._attn_mask_inverse)
+            lpips_input.register_hook(self._apply_inverse_mask)
             lpips_input.retain_grad()
             with torch.autocast("cuda"):
                 perceptual_loss = (
@@ -217,4 +208,5 @@ class ImagePromptEditor(nn.Module):
         print("Running LPIPS optim only")
         for transform in self._optimize_LPIPS(vector, original_img, optim):
             yield transform
+
         yield vector if self.return_val == "vector" else self.latent + vector
