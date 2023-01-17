@@ -50,20 +50,22 @@ class ImageState:
             "./latent_vectors/asian10.pt", map_location=self.device
         )
 
-    def create_gif(self, total_duration, extend_frames, gif_name="face_edit.gif"):
+    def create_gif(
+        total_duration, extend_frames, folder="./img_history", gif_name="face_edit.gif"
+    ):
         images = []
-        folder = self.img_dir
-        paths = glob.glob(folder + "/*")
+        paths = list(sorted(glob.glob(folder + "/*")))
+        print(paths)
         frame_duration = total_duration / len(paths)
         print(len(paths), "frame dur", frame_duration)
         durations = [frame_duration] * len(paths)
         if extend_frames:
             durations[0] = 1.5
             durations[-1] = 3
-        for file_name in os.listdir(folder):
+        for file_name in paths:
             if file_name.endswith(".png"):
-                file_path = os.path.join(folder, file_name)
-                images.append(imageio.imread(file_path))
+                print(file_name)
+                images.append(imageio.imread(file_name))
         imageio.mimsave(gif_name, images, duration=durations)
         return gif_name
 
