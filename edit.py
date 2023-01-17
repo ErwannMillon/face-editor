@@ -55,8 +55,8 @@ if __name__ == "__main__":
     model.to(device)
     blend_paths(
         model,
-        "./test_data/face.jpeg",
-        "./test_data/face2.jpeg",
+        "./test_pics/face.jpeg",
+        "./test_pics/face2.jpeg",
         quantize=False,
         weight=0.5,
     )

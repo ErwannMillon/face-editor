@@ -9,13 +9,7 @@ import torchvision.transforms.functional as TF
 from PIL import Image, ImageDraw, ImageFont
 
 
-def download_image(url):
-    resp = requests.get(url)
-    resp.raise_for_status()
-    return PIL.Image.open(io.BytesIO(resp.content))
-
-
-def preprocess(img, target_image_size=256, map_dalle=False):
+def preprocess(img, target_image_size=256):
     s = min(img.size)
 
     if s < target_image_size:
@@ -59,18 +53,3 @@ def loop_post_process(x):
     x = get_pil(x.squeeze())
     return x.permute(2, 0, 1).unsqueeze(0)
 
-
-def stack_reconstructions(input, x0, x1, x2, x3, titles=[]):
-    assert input.size == x1.size == x2.size == x3.size
-    w, h = input.size[0], input.size[1]
-    img = Image.new("RGB", (5 * w, h))
-    img.paste(input, (0, 0))
-    img.paste(x0, (1 * w, 0))
-    img.paste(x1, (2 * w, 0))
-    img.paste(x2, (3 * w, 0))
-    img.paste(x3, (4 * w, 0))
-    for i, title in enumerate(titles):
-        ImageDraw.Draw(img).text(
-            (i * w, 0), f"{title}", (255, 255, 255), font=font
-        )  # coordinates, text, color, font
-    return img
