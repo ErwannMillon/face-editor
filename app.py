@@ -85,10 +85,17 @@ with gr.Blocks(css="styles.css") as demo:
                     with gr.Row():
                         base_img = gr.Image(label="Base Image", type="filepath")
                         blend_img = gr.Image(label="Image for face blending (optional)", type="filepath")
+                        blend_weight = gr.Slider(
+                            label="Blend faces: 0 is base image, 1 is the second img",
+                            minimum=-0.,
+                            value=0,
+                            maximum=1.,
+                            step=0.1,
+                        )
                 with gr.Accordion(label="Add Mask", open=False):
                     mask = gr.Image(tool="sketch", interactive=True)
-                    gr.Markdown(value="Note: You must clear the mask using the rewind button every time you want to change the mask (this is a gradio issue)")
                     set_mask = gr.Button(value="Set mask")
+                    gr.Markdown(value="Note: You must clear the mask using the rewind button every time you want to change the mask (this is a gradio issue)")
                     gr.Text(value="this image shows the mask passed to the model when you press set mask (debugging purposes)")
                     testim = gr.Image()
             with gr.Row():
@@ -118,13 +125,6 @@ with gr.Blocks(css="styles.css") as demo:
                 minimum=-1.9,
                 value=0,
                 maximum=1.9,
-                step=0.1,
-            )
-            blend_weight = gr.Slider(
-                label="Blend faces: 0 is base image, 1 is the second img",
-                minimum=-0.,
-                value=0,
-                maximum=1.,
                 step=0.1,
             )
             asian_weight = gr.Slider(
