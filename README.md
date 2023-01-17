@@ -1,4 +1,4 @@
-# Face Editor
+# GUI Latent Face Editor
 
 ## Examples
 
