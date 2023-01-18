@@ -2,17 +2,13 @@
 
 ## Examples
 
-To man                     |  To Blonde
-:-------------------------:|:-------------------------:
-![](https://github.com/ErwannMillon/face-editor/blob/main/animations/woman_to_man.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/blonde.gif)
+To man                     |  To Blonde | To Asian
+:-------------------------:|:-------------------------:|:----:|
+![](https://github.com/ErwannMillon/face-editor/blob/main/animations/woman_to_man.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/blonde.gif) | ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/to_sian.gif)
 
-To Asian                   |  To African American
-:-------------------------:|:-------------------------:
-![](https://github.com/ErwannMillon/face-editor/blob/main/animations/to_sian.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/to_black.gif)
-
-Add Lipstick                   |  Thick Eyebrows
-:-------------------------:|:-------------------------:
-![](https://github.com/ErwannMillon/face-editor/blob/main/animations/add_lipstick.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/thick_eyebrows.gif)
+  To African American | Add Lipstick                   |  Thick Eyebrows
+:-------------------------:|:-------------------------:| :---:|
+![](https://github.com/ErwannMillon/face-editor/blob/main/animations/to_black.gif) | ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/add_lipstick.gif)  |  ![](https://github.com/ErwannMillon/face-editor/blob/main/animations/thick_eyebrows.gif)
 
 
 ## Overview
@@ -49,9 +45,9 @@ pip install -r requirements.txt
 - Multiple prompts
 - Local editing using a gradient masked adversarial loss (implemented as custom pytorch backpropagation hooks). The CLIP loss gradients are masked according to the user's selection, and the LPIPS loss gradients are masked with the inverse of the user mask in order to preserve the initial identity of the face and prevent changes outside of the masked zone that otherwise happen due to latent variable entanglement. 
 - Extracted latent vectors for slider-based editing
-- Rewinding through the history of edits
+- Rewinding through the edit history
 - Creating GIF animations of the editing process 
-- Iterative editing: you can apply some prompts, and continue editing by applying new prompts/edits to each new generated results
+- Iterative editing: you can apply some prompts, and continue editing by applying new prompts/edits to each new generated result
 
 ## Future work / ideas
 - Implementing an LRU cache to the render_all_transformations function. I first implemented a simple cache that refactored the function to take the transformations as arguments and cached the corresponding decoded transformed image to speed up rewinds through the prompt editing history, but this was very memory inefficient. An LRU cache could mitigate this, or even a cache that only caches the most recent prompt edit. Might add this later. 
