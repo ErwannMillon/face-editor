@@ -20,17 +20,14 @@ I've since written a series of Medium articles which provide a detailed and begi
 
 ## Demo
 
-
-and run `app.py` to open the web UI (see demo below)
-
 https://user-images.githubusercontent.com/18487334/213010613-83955be4-64d2-48b2-97a0-ebcaf70f20b8.mp4
 
 To run the web UI, you can <a href="https://colab.research.google.com/drive/110uAZIRQjQen0rKqcnX_bqUXIahvRsm9?usp=sharing"> open this colab notebook </a> and run all the cells, then click on the link that appears under the final cell.
 
 To run locally:
-- Create a fresh conda env with python 3.8 'conda env create -n face-editor python=3.8`
+- Create a fresh conda env with python 3.9 'conda create -n face-editor python=3.9`
 - Clone the repo
-- Install git-lfs
+- <a href="https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage"> Install git-lfs </a>
 - Run:
 
 ```
