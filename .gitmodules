@@ -1,3 +1,6 @@
 [submodule "taming"]
 	path = taming
 	url = https://github.com/CompVis/taming-transformers.git
+[submodule "model_checkpoints"]
+	path = model_checkpoints
+	url = https://huggingface.co/datasets/erwann/face_editor_model_ckpt
